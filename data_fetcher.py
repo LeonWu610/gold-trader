@@ -289,14 +289,27 @@ def fetch_price_data() -> dict:
             print(f"  ⏳ 等待 {wait:.1f}s...")
             time.sleep(wait)
 
-    # GLD ETF 资金流向（用已缓存的历史数据）
+    # GLD ETF 资金流向（用量价综合判断：价格方向 + 成交量变化）
     if "GLD" in result and "price" in result["GLD"] and gld_hist_cache is not None:
         try:
+            gld_vol   = gld_hist_cache["Volume"].dropna().tail(5).tolist()
             gld_close = gld_hist_cache["Close"].dropna().tail(5).tolist()
-            price_trend = gld_close[-1] - gld_close[0]
-            result["GLD"]["etf_flow"] = "流入" if price_trend > 0 else ("流出" if price_trend < -2 else "持平")
+            if len(gld_vol) >= 5 and len(gld_close) >= 5:
+                avg_vol_recent = sum(gld_vol[-2:]) / 2
+                avg_vol_prior  = sum(gld_vol[:3]) / 3
+                price_up = gld_close[-1] > gld_close[0]
+                vol_up   = avg_vol_recent > avg_vol_prior * 1.1
+                if price_up and vol_up:
+                    etf_flow = "流入"
+                elif not price_up and vol_up:
+                    etf_flow = "流出"
+                else:
+                    etf_flow = "持平"
+                result["GLD"]["etf_flow"] = etf_flow
+            else:
+                result["GLD"]["etf_flow"] = None
         except Exception:
-            result["GLD"]["etf_flow"] = "持平"
+            result["GLD"]["etf_flow"] = None
 
     return result
 
@@ -376,8 +389,14 @@ def fetch_fred_data(api_key: str) -> dict:
                     }
                     print(f"  ✅ [FRED] CPI同比: {yoy_pct}% (指数 {latest_val})")
                 elif obs:
-                    # 数据不足13个月，直接返回原始指数并标注
-                    result["CPIAUCSL"] = {"name": "CPI指数", "value": float(obs[0]["value"]), "date": obs[0]["date"]}
+                    # 数据不足13个月，明确返回 None，不用原始指数值参与评分
+                    result["CPIAUCSL"] = {
+                        "name": "CPI指数（数据不足，无法计算同比）",
+                        "value": None,
+                        "index_only": float(obs[0]["value"]),
+                        "date": obs[0]["date"],
+                        "error": "历史数据不足13个月，无法计算同比"
+                    }
                 else:
                     result["CPIAUCSL"] = {"error": "无有效观测值"}
                 break
@@ -539,9 +558,10 @@ def fetch_cot_data() -> dict:
         # 此处返回示例结构，真实实现需解压处理
         return {
             "source": "CFTC",
-            "note": "需解析CFTC ZIP文件，见代码注释",
-            "net_long_est": 285000,  # 示例值，实际需解析
-            "update_day": "每周五15:30 ET"
+            "status": "未实现",
+            "net_long_est": None,   # 无真实数据，不返回假数字
+            "update_day": "每周五15:30 ET",
+            "note": "需解析CFTC ZIP文件后启用"
         }
     except Exception as e:
         return {"error": str(e)}
@@ -557,8 +577,17 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
     dxy_raw = price_data.get("DX-Y.NYB", {}).get("price", 104)
     dxy_source = price_data.get("DX-Y.NYB", {}).get("source", "Yahoo Finance")
     tips = fred_data.get("DFII10", {}).get("value", 1.9)
-    # CPI：现在返回的是同比%（如 2.83），不再是指数绝对值
-    cpi = fred_data.get("CPIAUCSL", {}).get("value", 3.0)
+    # CPI：返回同比%（如 2.83），若为 None 则数据不足，不参与评分
+    cpi_raw = fred_data.get("CPIAUCSL", {}).get("value", None)
+    # 安全校验：若 cpi 异常大（>20%）说明拿到了原始指数，置为 None
+    cpi = cpi_raw if (cpi_raw is not None and cpi_raw < 20) else None
+
+    # 推算降息预期概率：实际利率越高，市场认为降息越远
+    tips_for_fed = tips if tips is not None else 1.9
+    fed_cut_prob_est = max(10, min(90, round(100 - tips_for_fed * 30)))
+
+    # ETF 流向：从 price_data 中读取（已在 fetch_price_data 里计算）
+    etf_flow = price_data.get("GLD", {}).get("etf_flow", None)
 
     # 宏观结构层（40%权重）
     tips_score = 3 if tips < 1.5 else (-1 if tips < 2.0 else -2)
@@ -573,12 +602,36 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
     else:
         # Yahoo DXY（传统DXY指数）
         dxy_score = 3 if dxy_raw < 100 else (1 if dxy_raw < 103 else (-1 if dxy_raw < 106 else -3))
-    scores.append({"layer": "宏观结构", "name": "美元指数DXY", "value": f"{dxy_raw:.1f}", "score": dxy_score, "weight": 0.13})
+    scores.append({"layer": "宏观结构", "name": "美元指数DXY", "value": f"{dxy_raw:.1f} ({'广义指数' if dxy_source == 'FRED' else 'DXY'})", "score": dxy_score, "weight": 0.13})
+
+    # 央行购金：无实时数据源，不参与评分
+    scores.append({"layer": "宏观结构", "name": "央行购金", "value": "无实时数据", "score": 0, "weight": 0})
+
+    # 降息预期（由 TIPS 推算）
+    fed_score = 3 if fed_cut_prob_est > 70 else (2 if fed_cut_prob_est > 50 else (0 if fed_cut_prob_est > 30 else -2))
+    scores.append({"layer": "宏观节奏", "name": "降息预期（推算）", "value": f"{fed_cut_prob_est}%", "score": fed_score, "weight": 0.14})
 
     # 宏观节奏层（35%权重）
     # CPI 同比%：适度通胀利好黄金，通胀过高或过低均有副作用
-    cpi_score = 3 if cpi < 2.5 else (1 if cpi < 3.0 else (-1 if cpi < 3.5 else -2))
-    scores.append({"layer": "宏观节奏", "name": "CPI同比通胀率", "value": f"{cpi:.2f}%", "score": cpi_score, "weight": 0.18})
+    if cpi is not None:
+        cpi_score = 3 if cpi < 2.5 else (1 if cpi < 3.0 else (-1 if cpi < 3.5 else -2))
+        cpi_weight = 0.13
+        cpi_value = f"{cpi:.2f}%"
+    else:
+        cpi_score = 0
+        cpi_weight = 0
+        cpi_value = "数据异常"
+    scores.append({"layer": "宏观节奏", "name": "CPI同比通胀率", "value": cpi_value, "score": cpi_score, "weight": cpi_weight})
+
+    # ETF 资金流向
+    if etf_flow is not None:
+        etf_score = 2 if etf_flow == "流入" else (-2 if etf_flow == "流出" else 0)
+        etf_weight = 0.12
+    else:
+        etf_score = 0
+        etf_weight = 0
+        etf_flow = "无数据"
+    scores.append({"layer": "情绪博弈", "name": "ETF资金流向", "value": etf_flow, "score": etf_score, "weight": etf_weight})
 
     # 技术面
     tech_score_raw = sum([
@@ -590,9 +643,13 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
         tech_data.get("volume_surge", False),
     ])
 
-    # 加权总分
-    weighted = sum(s["score"] * s["weight"] for s in scores)
-    normalized = round(weighted * 5)  # 标准化
+    # 加权总分（权重归一化，避免无数据字段压缩评分范围）
+    total_weight = sum(s["weight"] for s in scores)
+    if total_weight > 0:
+        weighted = sum(s["score"] * s["weight"] for s in scores) / total_weight
+    else:
+        weighted = 0
+    normalized = round(weighted * 15)  # 映射到 ±15
 
     # 交易信号判断
     in_support = 4700 <= gold_price <= 4850
@@ -616,6 +673,9 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
         "normalized_score": normalized,
         "tech_score": tech_score_raw,
         "action": action,
+        "fed_cut_prob_est": fed_cut_prob_est,
+        "etf_flow": etf_flow if etf_flow != "无数据" else None,
+        "dxy_source": dxy_source,
         "tech_details": {
             "above_ma50":   tech_data.get("above_ma50"),
             "above_ma200":  tech_data.get("above_ma200"),

@@ -155,15 +155,19 @@ const fetchFromLocalBackend = async (onProgress) => {
   return {
     price: {
       gold: { price: gold.price, change_pct: gold.change_pct, market_state: "BACKEND", source: goldSource },
-      dxy:  { price: dxy.price,  change_pct: dxy.change_pct  },
+      dxy:  { price: dxy.price,  change_pct: dxy.change_pct, source: dxySource },
       gld:  { price: gld.price,  change_pct: gld.change_pct, etf_flow: gld.etf_flow },
     },
     macro: {
-      tips:      fd["DFII10"]?.value,
-      tips_date: fd["DFII10"]?.date,
-      cpi:       fd["CPIAUCSL"]?.value,
-      cpi_date:  fd["CPIAUCSL"]?.date,
-      breakeven: fd["T10YIE"]?.value,
+      tips:             fd["DFII10"]?.value,
+      tips_date:        fd["DFII10"]?.date,
+      cpi:              fd["CPIAUCSL"]?.value,      // 正常同比值如 2.83，数据不足时为 null
+      cpi_date:         fd["CPIAUCSL"]?.date,
+      breakeven:        fd["T10YIE"]?.value,
+      // 从 signal 字段读取推算值和真实 ETF 流向
+      fed_cut_prob:     raw.signal?.fed_cut_prob_est ?? null,
+      etf_flow:         raw.signal?.etf_flow ?? null,
+      central_bank_buying: null,  // 明确无数据
     },
     tech: {
       price:       td.price,
@@ -297,35 +301,60 @@ const computeScore = (data) => {
   if (!data.price || !data.macro || !data.tech) return null;
 
   const goldPrice = data.price.gold?.price || data.price.gold_price || 0;
-  const dxy = data.price.dxy?.price || data.price.dxy || 104;
-  const tips = data.macro.tips || data.macro.tips_yield || 1.9;
-  const cpi = data.macro.cpi || 3.0;
-  const fedProb = data.macro.fed_cut_prob || 40;
-  const etfFlow = data.macro.etf_flow || "持平";
-  const geo = data.macro.geopolitical || "中";
-  const cbBuying = data.macro.central_bank_buying || "持续";
+  const dxyVal    = data.price.dxy?.price || 104;
+  const dxySource = data.price.dxy?.source || "Yahoo Finance";
+  const tips      = data.macro.tips || 1.9;
+
+  // CPI：安全校验，>20 说明拿到了原始指数，视为无效
+  const cpiRaw  = data.macro.cpi;
+  const cpi     = (cpiRaw !== null && cpiRaw !== undefined && cpiRaw < 20) ? cpiRaw : null;
+
+  // 降息预期：从后端推算值读取，没有则不默认
+  const fedProb = data.macro.fed_cut_prob ?? null;
+
+  // ETF 流向：从后端真实数据读取，没有则不默认
+  const etfFlow = data.macro.etf_flow ?? null;
+
+  // 央行购金：无数据，不参与评分
+  const cbBuying = data.macro.central_bank_buying ?? null;
 
   const scoreItems = [
-    { layer:"宏观结构", name:"TIPS实际利率", value:`${(+tips).toFixed(2)}%`,
-      score: tips<1.5?3:tips<2.0?-1:-2, weight:0.13 },
-    { layer:"宏观结构", name:"美元指数DXY", value:(+dxy).toFixed(1),
-      score: dxy<100?3:dxy<103?1:dxy<106?-1:-3, weight:0.13 },
-    { layer:"宏观结构", name:"央行购金", value:cbBuying,
-      score: cbBuying==="持续"?3:cbBuying==="放缓"?0:-2, weight:0.14 },
-    { layer:"宏观节奏", name:"降息预期概率", value:`${fedProb}%`,
-      score: fedProb>70?3:fedProb>50?2:fedProb>30?0:-2, weight:0.14 },
-    { layer:"宏观节奏", name:"CPI通胀率", value:`${(+cpi).toFixed(1)}%`,
-      score: cpi<2.5?3:cpi<3.0?1:cpi<3.5?-1:-2, weight:0.13 },
-    { layer:"宏观节奏", name:"地缘风险", value:geo,
-      score: geo==="高"?2:geo==="中"?1:-1, weight:0.08 },
-    { layer:"情绪博弈", name:"ETF资金流向", value:etfFlow,
-      score: etfFlow==="流入"?2:etfFlow==="持平"?0:-2, weight:0.12 },
-    { layer:"情绪博弈", name:"COT多头情绪", value:"市场数据",
-      score: 0, weight:0.08 },  // 有COT数据时填入
+    { layer:"宏观结构", name:"TIPS实际利率",
+      value:`${(+tips).toFixed(2)}%`,
+      score: tips<1.5?3:tips<2.0?-1:-2,
+      weight: 0.13 },
+    { layer:"宏观结构", name:`美元指数${dxySource==="FRED"?"(广义指数)":"DXY"}`,
+      value:(+dxyVal).toFixed(1),
+      score: dxySource==="FRED"
+        ? (dxyVal<105?3:dxyVal<110?1:dxyVal<118?-1:-3)
+        : (dxyVal<100?3:dxyVal<103?1:dxyVal<106?-1:-3),
+      weight: 0.13 },
+    { layer:"宏观结构", name:"央行购金",
+      value: cbBuying ?? "无实时数据",
+      score: cbBuying==="持续"?3:cbBuying==="放缓"?0:cbBuying==="停止"?-2:0,
+      weight: cbBuying !== null ? 0.14 : 0 },
+    { layer:"宏观节奏", name:"降息预期（推算）",
+      value: fedProb !== null ? `${fedProb}%` : "推算中",
+      score: fedProb===null?0: fedProb>70?3:fedProb>50?2:fedProb>30?0:-2,
+      weight: fedProb !== null ? 0.14 : 0 },
+    { layer:"宏观节奏", name:"CPI通胀率",
+      value: cpi !== null ? `${(+cpi).toFixed(2)}%` : "数据异常",
+      score: cpi===null?0: cpi<2.5?3:cpi<3.0?1:cpi<3.5?-1:-2,
+      weight: cpi !== null ? 0.13 : 0 },
+    { layer:"情绪博弈", name:"ETF资金流向",
+      value: etfFlow ?? "无数据",
+      score: etfFlow==="流入"?2:etfFlow==="流出"?-2:etfFlow==="持平"?0:0,
+      weight: etfFlow !== null ? 0.12 : 0 },
+    { layer:"情绪博弈", name:"COT多头情绪",
+      value:"无数据", score: 0, weight: 0 },
   ];
 
-  const weighted = scoreItems.reduce((s,i) => s + i.score*i.weight, 0);
-  const normalized = Math.round(weighted * 5);
+  // 权重归一化，避免无数据字段压缩评分范围
+  const totalWeight = scoreItems.reduce((s,i) => s + i.weight, 0);
+  const weighted = totalWeight > 0
+    ? scoreItems.reduce((s,i) => s + i.score*i.weight, 0) / totalWeight
+    : 0;
+  const normalized = Math.round(weighted * 15);  // 映射到 ±15
 
   const techItems = [
     data.tech.above_ma200, data.tech.above_ma50,
