@@ -234,10 +234,21 @@ const fetchAllData = async (onProgress) => {
       fetchFredSeries("CPIAUCSL"),
       fetchFredSeries("T10YIE"),
     ]);
+    const tipsVal = tips?.value ?? 1.9;
+    // CPI 安全校验：>20 说明拿到了原始指数，视为无效
+    const cpiVal = (cpi?.value !== null && cpi?.value !== undefined && cpi?.value < 20)
+      ? cpi?.value : null;
     result.macro = {
-      tips: tips?.value, tips_date: tips?.date,
-      cpi: cpi?.value,   cpi_date: cpi?.date,
-      breakeven: breakeven?.value,
+      tips:         tips?.value,   tips_date: tips?.date,
+      cpi:          cpiVal,        cpi_date:  cpi?.date,
+      breakeven:    breakeven?.value,
+      // 与后端逻辑保持一致：用 TIPS 推算降息概率
+      fed_cut_prob: Math.max(10, Math.min(90, Math.round(100 - tipsVal * 30))),
+      // ETF 流向：降级路径只有价格涨跌数据，用 change_pct 粗略判断
+      etf_flow: (result.price?.gld?.change_pct ?? 0) > 0.5  ? "流入"
+              : (result.price?.gld?.change_pct ?? 0) < -0.5 ? "流出"
+              : "持平",
+      central_bank_buying: null,  // 无数据
     };
     result.sources.macro = "FRED API（直连）";
     console.log("[Step2] ✅ FRED 直连成功", result.macro);
