@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm install --no-audit --prefer-offline && npm run build"
+buildCommand = "NODE_ENV=development npm install --no-audit && NODE_ENV=production npm run build"
 
 [deploy]
 startCommand = "npx serve -s build --listen tcp://0.0.0.0:$PORT"
