@@ -16,9 +16,11 @@
   pip install yfinance pandas requests fredapi
 """
 
+import io
 import json
 import time
 import random
+import zipfile
 import datetime
 import threading
 import requests
@@ -289,29 +291,115 @@ def fetch_price_data() -> dict:
             print(f"  ⏳ 等待 {wait:.1f}s...")
             time.sleep(wait)
 
-    # GLD ETF 资金流向（用量价综合判断：价格方向 + 成交量变化）
-    if "GLD" in result and "price" in result["GLD"] and gld_hist_cache is not None:
+    # GLD ETF 资金流向：优先用 totalAssets（持仓盎司数），fallback 量价判断
+    # yfinance Ticker.info['totalAssets'] 返回基金总资产（USD），除以金价得持仓盎司数
+    if "GLD" in result and "price" in result["GLD"]:
+        etf_flow = None
+        # 方案A：yfinance info.totalAssets（真实持仓）
         try:
-            gld_vol   = gld_hist_cache["Volume"].dropna().tail(5).tolist()
-            gld_close = gld_hist_cache["Close"].dropna().tail(5).tolist()
-            if len(gld_vol) >= 5 and len(gld_close) >= 5:
-                avg_vol_recent = sum(gld_vol[-2:]) / 2
-                avg_vol_prior  = sum(gld_vol[:3]) / 3
-                price_up = gld_close[-1] > gld_close[0]
-                vol_up   = avg_vol_recent > avg_vol_prior * 1.1
-                if price_up and vol_up:
-                    etf_flow = "流入"
-                elif not price_up and vol_up:
-                    etf_flow = "流出"
+            gld_ticker = yf.Ticker("GLD")
+            info = gld_ticker.info
+            total_assets = info.get("totalAssets") if info else None
+            # 注意：yfinance info 字段可能叫 totalAssets 或 netAssets
+            if total_assets is None:
+                total_assets = info.get("netAssets") if info else None
+            # 如果拿到的是字符串（如 "50B"），需要解析
+            if isinstance(total_assets, str):
+                # 常见格式: "50.2B", "3.1T", "800M"
+                multipliers = {"K": 1e3, "M": 1e6, "B": 1e9, "T": 1e12}
+                for suffix, mult in multipliers.items():
+                    if total_assets.upper().endswith(suffix):
+                        total_assets = float(total_assets[:-1]) * mult
+                        break
                 else:
-                    etf_flow = "持平"
-                result["GLD"]["etf_flow"] = etf_flow
-            else:
+                    total_assets = float(total_assets.replace(",", ""))
+
+            if total_assets:
+                gold_price_est = result.get("GC=F", {}).get("price")
+                if gold_price_est:
+                    # 持仓盎司数 = 总资产 / 当前金价
+                    holdings_oz = total_assets / gold_price_est
+                # 取前一交易日做对比：需要历史持仓，yfinance 不直接提供
+                # fallback：用5日均量+价格方向做粗略判断
+                # 此处只记录当前持仓，流向判断仍用 fallback
+                result["GLD"]["holdings_oz_est"] = round(holdings_oz, 0)
+                result["GLD"]["total_assets"] = total_assets
+                print(f"  ✅ [GLD] 估算持仓: {holdings_oz:,.0f} oz (${total_assets:,.0f} / ${gold_price_est})")
+        except Exception as e:
+            print(f"  ⚠️  [GLD] 获取 totalAssets 失败: {e}")
+
+        # 方案B：量价综合判断（fallback，精度较低）
+        if gld_hist_cache is not None:
+            try:
+                gld_vol   = gld_hist_cache["Volume"].dropna().tail(5).tolist()
+                gld_close = gld_hist_cache["Close"].dropna().tail(5).tolist()
+                if len(gld_vol) >= 5 and len(gld_close) >= 5:
+                    avg_vol_recent = sum(gld_vol[-2:]) / 2
+                    avg_vol_prior  = sum(gld_vol[:3]) / 3
+                    price_up = gld_close[-1] > gld_close[0]
+                    vol_up   = avg_vol_recent > avg_vol_prior * 1.1
+                    if price_up and vol_up:
+                        etf_flow = "流入"
+                    elif not price_up and vol_up:
+                        etf_flow = "流出"
+                    else:
+                        etf_flow = "持平"
+                    result["GLD"]["etf_flow"] = etf_flow
+                else:
+                    result["GLD"]["etf_flow"] = None
+            except Exception:
                 result["GLD"]["etf_flow"] = None
-        except Exception:
+        else:
             result["GLD"]["etf_flow"] = None
 
     return result
+
+
+# ─── 2a. VIX 波动率指数（地缘风险代理）───────────────────────────────────────
+# VIX > 25 = 市场恐慌/风险上升
+# VIX < 15 = 市场平稳/风险较低
+# 15~25 = 中性
+# 数据来源：yfinance（^VIX），日频，免费无限制
+
+def fetch_vix_risk() -> dict:
+    """
+    用 VIX 指数作为地缘/市场风险的代理变量。
+    """
+    try:
+        hist = yf_ticker_with_retry("^VIX", period="5d", interval="1d")
+        if hist is not None and not hist.empty:
+            vix_close = float(hist["Close"].iloc[-1])
+            vix_prev  = float(hist["Close"].iloc[-2]) if len(hist) >= 2 else vix_close
+            vix_change = vix_close - vix_prev
+
+            # 风险判断
+            if vix_close > 25:
+                risk_level = "高"
+                risk_desc  = "市场恐慌，地缘风险上升"
+            elif vix_close > 20:
+                risk_level = "中高"
+                risk_desc  = "风险温和上升"
+            elif vix_close > 15:
+                risk_level = "中性"
+                risk_desc  = "市场情绪平稳"
+            else:
+                risk_level = "低"
+                risk_desc  = "风险偏好良好"
+
+            print(f"  ✅ [VIX] VIX: {vix_close:.1f} (Δ{vix_change:+.1f}) → {risk_level}风险")
+            return {
+                "value": round(vix_close, 1),
+                "change": round(vix_change, 1),
+                "risk_level": risk_level,
+                "risk_desc": risk_desc,
+                "source": "CBOE VIX（yfinance）",
+                "date": str(hist.index[-1].date()),
+            }
+        else:
+            raise ValueError("^VIX 数据为空")
+    except Exception as e:
+        print(f"  ⚠️  [VIX] 获取失败: {e}")
+        return {"value": None, "risk_level": "未知", "source": "获取失败"}
 
 
 # ─── 2. 实际利率与通胀（FRED API）────────────────────────────────────────────
@@ -538,38 +626,194 @@ def fetch_technical_indicators(symbol: str = "GC=F") -> dict:
         return {"error": str(e)}
 
 
+# ─── 4a. 联邦基金期货隐含降息概率（30天Fed Fund Futures）────────────────────
+# 合约：ZQ=F（CBOT 30日联邦基金期货，最近月合约）
+# 原理：期货价格 = 100 - 隐含联邦基金利率
+#       隐含利率 = 100 - 期货价格
+#       降息概率 = (隐含利率 - 当前利率) / 降息幅度 （简化：0.25bp一档）
+# fallback：用 FRED DFEDTARU（目标利率上限，日频）+ TIPS 推算
+
+def fetch_fed_cut_prob() -> dict:
+    """
+    用30天联邦基金期货（ZQ=F）计算市场隐含降息概率。
+    返回 {"prob": float(%), "implied_rate": float, "current_rate": float, "source": str}
+    """
+    result = {"prob": None, "implied_rate": None, "current_rate": None, "source": None}
+
+    # ── 步骤1：获取当前联邦基金利率目标上限（FRED DFEDTARU，日频）
+    try:
+        params = {
+            "series_id": "DFEDTARU",
+            "api_key": FRED_API_KEY,
+            "file_type": "json",
+            "limit": 5,
+            "sort_order": "desc",
+        }
+        resp = requests.get("https://api.stlouisfed.org/fred/series/observations",
+                            params=params, timeout=20)
+        obs = [o for o in resp.json().get("observations", []) if o["value"] != "."]
+        current_rate = float(obs[0]["value"]) if obs else None
+        print(f"  ✅ [FedRate] 当前目标利率上限: {current_rate}%")
+    except Exception as e:
+        print(f"  ⚠️  [FedRate] FRED DFEDTARU 失败: {e}")
+        current_rate = None
+
+    # ── 步骤2：用 yfinance 拉取 ZQ=F（最近月30天联邦基金期货）
+    try:
+        hist = yf_ticker_with_retry("ZQ=F", period="5d", interval="1d")
+        if hist is not None and not hist.empty:
+            futures_price = float(hist["Close"].iloc[-1])
+            implied_rate = round(100 - futures_price, 4)   # 隐含年化利率 %
+            result["implied_rate"] = implied_rate
+            result["source"] = "ZQ=F（30天联邦基金期货）"
+            print(f"  ✅ [ZQ=F] 期货价格: {futures_price:.4f}, 隐含利率: {implied_rate:.4f}%")
+        else:
+            raise ValueError("ZQ=F 数据为空")
+    except Exception as e:
+        print(f"  ⚠️  [ZQ=F] 期货数据失败: {e}")
+        implied_rate = None
+
+    # ── 步骤3：计算降息概率
+    if implied_rate is not None and current_rate is not None:
+        # 每次降息25bp（0.25%），判断期货隐含利率相对当前利率的偏离
+        rate_diff = current_rate - implied_rate  # 正值 = 市场预期降息
+        # 概率 = diff / 0.25 × 100，截断到 [5, 95]
+        raw_prob = rate_diff / 0.25 * 100
+        prob = max(5, min(95, round(raw_prob)))
+        result["prob"] = prob
+        result["current_rate"] = current_rate
+        print(f"  ✅ [FedCut] 降息概率: {prob}% (利差: {rate_diff:.4f}%)")
+    elif current_rate is not None:
+        # fallback：TIPS 线性推算（已知误差较大，明确标注）
+        # 从 FRED 获取 DFII10 TIPS，若无则不推算
+        result["prob"] = None
+        result["source"] = "ZQ=F失败，降息概率不可用"
+        print(f"  ⚠️  [FedCut] ZQ=F不可用，降息概率设为 None")
+    else:
+        result["prob"] = None
+        result["source"] = "数据不可用"
+
+    return result
+
+
 # ─── 4. CFTC黄金COT持仓（每周五发布）────────────────────────────────────────
+# 黄金期货（COMEX）合约代码：088691
+# CFTC Disaggregated COT 报告，无需API Key，完全免费
+# 字段说明：
+#   NonComm_Positions_Long_All  = 非商业（投机）多头合约数
+#   NonComm_Positions_Short_All = 非商业（投机）空头合约数
+#   Net Long = Long - Short → 正值代表市场偏多头，负值代表偏空头
+
+GOLD_CFTC_CODE = "088691"  # COMEX 黄金期货合约代码
+
 def fetch_cot_data() -> dict:
     """
-    CFTC公开数据，无需API key
-    黄金期货合约代码：088691
-    数据每周五美东时间15:30更新
+    从 CFTC 官方网站下载 Disaggregated Futures COT 报告（ZIP→CSV）。
+    无需 API Key，每周五美东时间 15:30 更新。
+    黄金合约代码：088691
     """
-    try:
-        # CFTC提供CSV下载
-        url = "https://www.cftc.gov/dea/futures/deacmesf.htm"
-        # 实际使用时解析HTML表格或使用专门的COT数据库
-        # 这里演示用Quandl/Nasdaq数据接口（需注册免费账号）
-        # 替代方案：https://www.cotpricecharts.com/
-        
-        # 简化版：直接请求CFTC的原始数据文件
-        cot_url = "https://www.cftc.gov/files/dea/history/fut_disagg_txt_2025.zip"
-        # 注意：实际生产中应解压ZIP并解析CSV
-        # 此处返回示例结构，真实实现需解压处理
-        return {
-            "source": "CFTC",
-            "status": "未实现",
-            "net_long_est": None,   # 无真实数据，不返回假数字
-            "update_day": "每周五15:30 ET",
-            "note": "需解析CFTC ZIP文件后启用"
-        }
-    except Exception as e:
-        return {"error": str(e)}
+    year = datetime.date.today().year
+    # CFTC 每年维护一个 ZIP 文件，当年数据最全
+    urls_to_try = [
+        f"https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip",
+        f"https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year - 1}.zip",
+    ]
+
+    for url in urls_to_try:
+        try:
+            print(f"  📥 [COT] 下载 {url}")
+            resp = requests.get(url, timeout=60)
+            if resp.status_code != 200:
+                print(f"  ⚠️  [COT] HTTP {resp.status_code}，尝试下一个 URL")
+                continue
+
+            # 解压 ZIP，读取唯一的 .txt（CSV格式）文件
+            with zipfile.ZipFile(io.BytesIO(resp.content)) as zf:
+                csv_name = next((n for n in zf.namelist() if n.lower().endswith(".txt")), None)
+                if not csv_name:
+                    print(f"  ⚠️  [COT] ZIP 内无 .txt 文件: {zf.namelist()}")
+                    continue
+                with zf.open(csv_name) as f:
+                    df = pd.read_csv(f, encoding="latin-1", low_memory=False)
+
+            # 筛选黄金合约（CFTC_Contract_Market_Code == "088691"）
+            # 列名可能含空格，做宽容匹配
+            code_col = next((c for c in df.columns if "contract_market_code" in c.lower()), None)
+            if code_col is None:
+                print(f"  ⚠️  [COT] 找不到合约代码列，实际列: {list(df.columns[:10])}")
+                continue
+
+            gold_df = df[df[code_col].astype(str).str.strip() == GOLD_CFTC_CODE].copy()
+            if gold_df.empty:
+                print(f"  ⚠️  [COT] 未找到黄金合约 {GOLD_CFTC_CODE}")
+                continue
+
+            # 按报告日期排序，取最新一行
+            date_col = next((c for c in df.columns if "report" in c.lower() and "date" in c.lower()), None)
+            if date_col:
+                gold_df[date_col] = pd.to_datetime(gold_df[date_col], errors="coerce")
+                gold_df = gold_df.sort_values(date_col, ascending=False)
+            latest = gold_df.iloc[0]
+
+            # 非商业（投机）净多头 = Long - Short
+            long_col  = next((c for c in df.columns if "noncomm" in c.lower() and "long"  in c.lower() and "all" in c.lower()), None)
+            short_col = next((c for c in df.columns if "noncomm" in c.lower() and "short" in c.lower() and "all" in c.lower()), None)
+
+            if long_col is None or short_col is None:
+                print(f"  ⚠️  [COT] 找不到 NonComm Long/Short 列")
+                continue
+
+            net_long   = int(latest[long_col]) - int(latest[short_col])
+            long_pos   = int(latest[long_col])
+            short_pos  = int(latest[short_col])
+            report_date = str(latest[date_col].date()) if date_col else "未知"
+
+            # 净多/总持仓比（情绪极端值判断）
+            total_open_interest_col = next(
+                (c for c in df.columns if "open_interest" in c.lower() and "all" in c.lower()), None)
+            oi = int(latest[total_open_interest_col]) if total_open_interest_col else None
+            net_pct = round(net_long / oi * 100, 1) if oi and oi > 0 else None
+
+            print(f"  ✅ [COT] 黄金净多头: {net_long:+,} 手 | 净多/OI: {net_pct}% | 日期: {report_date}")
+            return {
+                "source": "CFTC（官方）",
+                "report_date": report_date,
+                "net_long": net_long,          # 净多头合约数（手），正=多头主导
+                "long_positions": long_pos,
+                "short_positions": short_pos,
+                "open_interest": oi,
+                "net_long_pct": net_pct,        # 净多头占总持仓比例%
+                "sentiment": (
+                    "极度多头" if net_pct is not None and net_pct > 30 else
+                    "多头"     if net_pct is not None and net_pct > 15 else
+                    "中性"     if net_pct is not None and net_pct > -5 else
+                    "空头"
+                ),
+                "update_day": "每周五15:30 ET",
+            }
+
+        except Exception as e:
+            print(f"  ⚠️  [COT] {url} 解析失败: {e}")
+            continue
+
+    # 全部失败
+    return {
+        "source": "CFTC",
+        "status": "获取失败",
+        "net_long": None,
+        "update_day": "每周五15:30 ET",
+        "note": "下载或解析 CFTC ZIP 失败，请检查网络"
+    }
 
 
 # ─── 5. 评分引擎 ─────────────────────────────────────────────────────────────
-def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot_data: dict) -> dict:
+def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
+                         cot_data: dict, fed_cut_data: dict = None, vix_data: dict = None) -> dict:
     scores = []
+    if fed_cut_data is None:
+        fed_cut_data = {}
+    if vix_data is None:
+        vix_data = {}
 
     gold_price = price_data.get("GC=F", {}).get("price", 0)
     # DXY：优先用 price_data 里的 Yahoo Finance DXY（90-110范围），
@@ -582,9 +826,19 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
     # 安全校验：若 cpi 异常大（>20%）说明拿到了原始指数，置为 None
     cpi = cpi_raw if (cpi_raw is not None and cpi_raw < 20) else None
 
-    # 推算降息预期概率：实际利率越高，市场认为降息越远
-    tips_for_fed = tips if tips is not None else 1.9
-    fed_cut_prob_est = max(10, min(90, round(100 - tips_for_fed * 30)))
+    # 降息预期概率：
+    #   优先用 ZQ=F 联邦基金期货隐含概率（市场实际定价）
+    #   fallback：TIPS 线性推算（已知误差较大，明确标注）
+    fed_cut_prob_futures = fed_cut_data.get("prob", None)
+    fed_cut_source = fed_cut_data.get("source", None)
+    if fed_cut_prob_futures is not None:
+        fed_cut_prob_est = fed_cut_prob_futures
+        fed_cut_label = f"降息预期（ZQ=F期货，{fed_cut_source or ''}）"
+    else:
+        # TIPS 线性推算 fallback
+        tips_for_fed = tips if tips is not None else 1.9
+        fed_cut_prob_est = max(10, min(90, round(100 - tips_for_fed * 30)))
+        fed_cut_label = "降息预期（TIPS推算，精度较低）"
 
     # ETF 流向：从 price_data 中读取（已在 fetch_price_data 里计算）
     etf_flow = price_data.get("GLD", {}).get("etf_flow", None)
@@ -604,12 +858,38 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
         dxy_score = 3 if dxy_raw < 100 else (1 if dxy_raw < 103 else (-1 if dxy_raw < 106 else -3))
     scores.append({"layer": "宏观结构", "name": "美元指数DXY", "value": f"{dxy_raw:.1f} ({'广义指数' if dxy_source == 'FRED' else 'DXY'})", "score": dxy_score, "weight": 0.13})
 
-    # 央行购金：无实时数据源，不参与评分
-    scores.append({"layer": "宏观结构", "name": "央行购金", "value": "无实时数据", "score": 0, "weight": 0})
+    # 央行购金：WGC季度数据延迟太大，降格为纯展示字段，不参与评分
+    # 后续可接入 WGC 季度报告作为展示数据
 
-    # 降息预期（由 TIPS 推算）
+    # VIX 地缘/市场风险（代理变量）
+    vix_value = vix_data.get("value", None)
+    vix_risk_level = vix_data.get("risk_level", "未知")
+    vix_date = vix_data.get("date", "")
+    if vix_value is not None:
+        # VIX > 25: 风险高，利好黄金（避险）
+        # VIX < 15: 风险低，中性
+        # 15-25: 中性
+        if vix_value > 25:
+            vix_score = 3   # 高风险，黄金避险需求强
+        elif vix_value > 20:
+            vix_score = 2   # 中高风险，温和利好
+        elif vix_value > 15:
+            vix_score = 0   # 中性
+        else:
+            vix_score = -1  # 风险偏好好，黄金避险需求弱
+        vix_weight = 0.10
+        vix_label = f"VIX风险（{vix_risk_level}）"
+    else:
+        vix_score = 0
+        vix_weight = 0
+        vix_label = "VIX风险（获取失败）"
+    scores.append({"layer": "宏观结构", "name": vix_label,
+                   "value": f"VIX {vix_value:.1f}" if vix_value else "无数据",
+                   "score": vix_score, "weight": vix_weight})
+
+    # 降息预期（优先 ZQ=F 期货，fallback TIPS 推算）
     fed_score = 3 if fed_cut_prob_est > 70 else (2 if fed_cut_prob_est > 50 else (0 if fed_cut_prob_est > 30 else -2))
-    scores.append({"layer": "宏观节奏", "name": "降息预期（推算）", "value": f"{fed_cut_prob_est}%", "score": fed_score, "weight": 0.14})
+    scores.append({"layer": "宏观节奏", "name": fed_cut_label, "value": f"{fed_cut_prob_est}%", "score": fed_score, "weight": 0.14})
 
     # 宏观节奏层（35%权重）
     # CPI 同比%：适度通胀利好黄金，通胀过高或过低均有副作用
@@ -633,6 +913,36 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
         etf_flow = "无数据"
     scores.append({"layer": "情绪博弈", "name": "ETF资金流向", "value": etf_flow, "score": etf_score, "weight": etf_weight})
 
+    # COT 非商业净多头情绪
+    cot_net_pct = cot_data.get("net_long_pct", None)
+    cot_sentiment = cot_data.get("sentiment", None)
+    cot_date = cot_data.get("report_date", "")
+    if cot_net_pct is not None:
+        # 净多占比 > 30% → 多头极端（可能过热，适度谨慎），15~30% 健康多头，<-5% 看空
+        if cot_net_pct > 40:
+            cot_score = 1   # 极端多头，情绪过热，略有反向风险
+        elif cot_net_pct > 15:
+            cot_score = 3   # 健康多头
+        elif cot_net_pct > 0:
+            cot_score = 1   # 弱多头
+        elif cot_net_pct > -10:
+            cot_score = 0   # 中性
+        else:
+            cot_score = -2  # 空头
+        cot_weight = 0.12
+        cot_value = f"{cot_net_pct:+.1f}% 净多（{cot_sentiment}）" if cot_sentiment else f"{cot_net_pct:+.1f}%"
+    else:
+        cot_score = 0
+        cot_weight = 0
+        cot_value = "获取失败"
+    scores.append({
+        "layer": "情绪博弈",
+        "name": f"COT多头情绪（{cot_date}）" if cot_date else "COT多头情绪",
+        "value": cot_value,
+        "score": cot_score,
+        "weight": cot_weight,
+    })
+
     # 技术面
     tech_score_raw = sum([
         tech_data.get("above_ma200", False),
@@ -651,10 +961,20 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
         weighted = 0
     normalized = round(weighted * 15)  # 映射到 ±15
 
-    # 交易信号判断
-    in_support = 4700 <= gold_price <= 4850
-    in_deep_support = 4400 <= gold_price <= 4500
-    breakout = gold_price > 5000
+    # 交易信号判断：动态支撑/阻力，来自技术面实际计算值
+    # support / resistance 由 fetch_technical_indicators 计算（近60日低/高点）
+    tech_support    = tech_data.get("support", 0)
+    tech_resistance = tech_data.get("resistance", 9_999_999)
+    atr             = tech_data.get("atr", 0)
+
+    # 支撑区：价格在 support 到 support + 2*ATR 之间（贴近支撑但未跌破）
+    # 用 ATR 动态衡量"靠近支撑"的范围，比硬编码绝对值更稳健
+    support_band = atr * 2 if atr > 0 else tech_support * 0.03
+    in_support      = (tech_support <= gold_price <= tech_support + support_band)
+    in_deep_support = (gold_price < tech_support and gold_price >= tech_support * 0.97)  # 微幅跌破支撑但未超3%
+
+    # 突破：价格超过阻力位的98%（允许2%误差防止假突破误判）
+    breakout = (tech_resistance > 0 and gold_price >= tech_resistance * 0.98)
 
     if breakout and normalized >= 4 and tech_score_raw >= 3:
         action = "追多突破"
@@ -674,8 +994,29 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict, cot
         "tech_score": tech_score_raw,
         "action": action,
         "fed_cut_prob_est": fed_cut_prob_est,
+        "fed_cut_source":   "ZQ=F期货" if fed_cut_prob_futures is not None else "TIPS推算",
         "etf_flow": etf_flow if etf_flow != "无数据" else None,
         "dxy_source": dxy_source,
+        # 动态支撑阻力：传给前端用于信号判断，避免前端硬编码
+        "tech_support":    tech_support,
+        "tech_resistance": tech_resistance,
+        "atr":             atr,
+        "in_support":      in_support,
+        "in_deep_support": in_deep_support,
+        "breakout":        breakout,
+        "vix": {
+            "value":       vix_value,
+            "risk_level":  vix_risk_level,
+            "date":        vix_date,
+            "source":      vix_data.get("source"),
+        },
+        "cot": {
+            "net_long":     cot_data.get("net_long"),
+            "net_long_pct": cot_net_pct,
+            "sentiment":    cot_sentiment,
+            "report_date":  cot_date,
+            "source":       cot_data.get("source"),
+        },
         "tech_details": {
             "above_ma50":   tech_data.get("above_ma50"),
             "above_ma200":  tech_data.get("above_ma200"),
@@ -705,19 +1046,27 @@ def run_full_analysis() -> dict:
     print("⏳ 抓取宏观数据（FRED API）...")
     fred_data = fetch_fred_data(FRED_API_KEY)
 
+    print("⏳ 获取VIX波动率（地缘风险代理）...")
+    vix_data = fetch_vix_risk()
+
+    print("⏳ 获取联邦基金期货隐含降息概率（ZQ=F）...")
+    fed_cut_data = fetch_fed_cut_prob()
+
     print("⏳ 获取COT持仓...")
     cot_data = fetch_cot_data()
 
     print("⏳ 计算综合评分...")
-    signal = compute_signal_score(price_data, fred_data, tech_data, cot_data)
+    signal = compute_signal_score(price_data, fred_data, tech_data, cot_data, fed_cut_data, vix_data)
 
     output = {
         "timestamp": datetime.datetime.now().isoformat(),
         "data_sources": {
-            "price":  price_data,
-            "macro":  fred_data,
+            "price":    price_data,
+            "macro":    fred_data,
             "technical": tech_data,
-            "cot":    cot_data,
+            "cot":      cot_data,
+            "fed_cut":  fed_cut_data,
+            "vix":      vix_data,
         },
         "signal": signal
     }

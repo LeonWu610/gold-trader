@@ -167,7 +167,12 @@ const fetchFromLocalBackend = async (onProgress) => {
       // 从 signal 字段读取推算值和真实 ETF 流向
       fed_cut_prob:     raw.signal?.fed_cut_prob_est ?? null,
       etf_flow:         raw.signal?.etf_flow ?? null,
-      central_bank_buying: null,  // 明确无数据
+      central_bank_buying: null,  // 明确无数据（WGC季度更新，仅作展示）
+      // COT 持仓情绪（CFTC 官方，每周五更新）
+      cot_net_long:     raw.signal?.cot?.net_long     ?? null,
+      cot_net_pct:      raw.signal?.cot?.net_long_pct ?? null,
+      cot_sentiment:    raw.signal?.cot?.sentiment    ?? null,
+      cot_date:         raw.signal?.cot?.report_date  ?? null,
     },
     tech: {
       price:       td.price,
@@ -178,11 +183,20 @@ const fetchFromLocalBackend = async (onProgress) => {
       rsi:         td.rsi,
       rsi_healthy: td.rsi >= 35 && td.rsi <= 65,
       rsi_oversold: td.rsi < 30,
+      rsi_divergence: td.rsi_divergence,   // 底背离信号（后端已计算）
       macd_positive: td.macd_above_signal,
+      macd_cross:   td.macd_cross,         // 金叉信号
+      atr:         td.atr,                 // ATR波动率，用于动态支撑带
       support:     td.support,
       resistance:  td.resistance,
       volume_surge: td.volume_surge,
       source:      techSource,
+    },
+    // 后端已计算的布尔判断，前端直接读取避免重复硬编码
+    _signal: {
+      in_support:      raw.signal?.in_support      ?? null,
+      in_deep_support: raw.signal?.in_deep_support ?? null,
+      breakout:        raw.signal?.breakout        ?? null,
     },
     sources: {
       price: `行情: ${goldSource} | DXY: ${dxySource} | ETF: ${pd["GLD"]?.source || "Yahoo Finance"}`,
@@ -286,14 +300,22 @@ const fetchAllData = async (onProgress) => {
       ema12 = ema12 * (1 - 2/13) + c * (2/13);
       ema26 = ema26 * (1 - 2/27) + c * (2/27);
     }
+    // ATR(14): 简化版（仅用 high-low 代替真实 TrueRange，降级时精度够用）
+    const recentHLs = highs.slice(-14).map((h,i)=>h - lows.slice(-14)[i]);
+    const atrVal = Math.round(recentHLs.reduce((a,b)=>a+b,0)/recentHLs.length * 100)/100;
+    const supportVal    = Math.round(Math.min(...lows.slice(-60)));
+    const resistanceVal = Math.round(Math.max(...highs.slice(-60)));
     result.tech = {
       price: Math.round(current * 100)/100,
       ma20: Math.round(ma20), ma50: Math.round(ma50), ma200: Math.round(ma200),
       above_ma20: current > ma20, above_ma50: current > ma50, above_ma200: current > ma200,
       rsi, rsi_healthy: rsi >= 35 && rsi <= 65, rsi_oversold: rsi < 30,
+      rsi_divergence: false,  // 降级路径无法计算底背离，置为 false
       macd_positive: ema12 > ema26,
-      support: Math.round(Math.min(...lows.slice(-60))),
-      resistance: Math.round(Math.max(...highs.slice(-60))),
+      macd_cross: false,      // 降级路径无前一日信号线，无法判断金叉
+      atr: atrVal,
+      support: supportVal,
+      resistance: resistanceVal,
       volume_surge: sma(volumes, 5) > sma(volumes, 20) * 1.3,
       source: "Yahoo Finance历史数据（直连）"
     };
@@ -326,7 +348,8 @@ const computeScore = (data) => {
   // ETF 流向：从后端真实数据读取，没有则不默认
   const etfFlow = data.macro.etf_flow ?? null;
 
-  // 央行购金：无数据，不参与评分
+  // 央行购金：WGC季度数据延迟太大，改为纯展示字段（不参与评分）
+  // 保留字段供未来展示使用
   const cbBuying = data.macro.central_bank_buying ?? null;
 
   const scoreItems = [
@@ -340,10 +363,7 @@ const computeScore = (data) => {
         ? (dxyVal<105?3:dxyVal<110?1:dxyVal<118?-1:-3)
         : (dxyVal<100?3:dxyVal<103?1:dxyVal<106?-1:-3),
       weight: 0.13 },
-    { layer:"宏观结构", name:"央行购金",
-      value: cbBuying ?? "无实时数据",
-      score: cbBuying==="持续"?3:cbBuying==="放缓"?0:cbBuying==="停止"?-2:0,
-      weight: cbBuying !== null ? 0.14 : 0 },
+    // 央行购金已移除，改为独立展示字段（WGC季度更新，不适合做日度评分因子）
     { layer:"宏观节奏", name:"降息预期（推算）",
       value: fedProb !== null ? `${fedProb}%` : "推算中",
       score: fedProb===null?0: fedProb>70?3:fedProb>50?2:fedProb>30?0:-2,
@@ -356,8 +376,14 @@ const computeScore = (data) => {
       value: etfFlow ?? "无数据",
       score: etfFlow==="流入"?2:etfFlow==="流出"?-2:etfFlow==="持平"?0:0,
       weight: etfFlow !== null ? 0.12 : 0 },
-    { layer:"情绪博弈", name:"COT多头情绪",
-      value:"无数据", score: 0, weight: 0 },
+    // COT: 数据来自后端 CFTC 解析，score/weight 由后端决定
+    // 前端仅在后端不可用（降级路径）时显示"获取失败"
+    { layer:"情绪博弈", name:`COT多头情绪${macroData?.cot_date ? `（${macroData.cot_date}）` : ""}`,
+      value: macroData?.cot_net_pct != null
+        ? `${macroData.cot_net_pct > 0 ? "+" : ""}${macroData.cot_net_pct.toFixed(1)}% 净多`
+        : "无数据（仅后端模式可用）",
+      score: 0, weight: 0  // 降级路径不参与评分，评分由后端 scoreItems 处理
+    },
   ];
 
   // 权重归一化，避免无数据字段压缩评分范围
@@ -367,22 +393,39 @@ const computeScore = (data) => {
     : 0;
   const normalized = Math.round(weighted * 15);  // 映射到 ±15
 
+  // 与后端 compute_signal_score tech_score_raw 完全对齐：
+  //   [above_ma200, above_ma50, rsi_healthy, rsi_divergence, macd_above_signal, volume_surge]
+  // 注意：后端用 rsi_divergence（底背离），前端之前错误地用了 rsi_oversold（超卖），现已修正
   const techItems = [
     data.tech.above_ma200, data.tech.above_ma50,
-    data.tech.rsi_healthy, data.tech.rsi_oversold || false,
+    data.tech.rsi_healthy, data.tech.rsi_divergence || false,
     data.tech.macd_positive, data.tech.volume_surge,
   ];
   const techScore = techItems.filter(Boolean).length;
 
-  const inSupport = goldPrice >= 4700 && goldPrice <= 4850;
-  const inDeepSupport = goldPrice >= 4400 && goldPrice <= 4500;
-  const breakout = goldPrice > 5000;
+  // 动态支撑阻力：优先用后端传回的计算值，避免硬编码
+  // 后端 signal 里已含 in_support / in_deep_support / breakout 布尔值
+  // 这里在前端也保留一套计算逻辑作为降级（后端未启动时仍然工作）
+  const techSupport    = data.tech?.support    || 0;
+  const techResistance = data.tech?.resistance || 0;
+  const atr            = data.tech?.atr        || 0;
+  const supportBand    = atr > 0 ? atr * 2 : techSupport * 0.03;
+
+  // 优先用后端已计算的布尔值；后端不可用时本地计算
+  const inSupport      = data._signal?.in_support      ??
+    (techSupport > 0 && goldPrice >= techSupport && goldPrice <= techSupport + supportBand);
+  const inDeepSupport  = data._signal?.in_deep_support ??
+    (techSupport > 0 && goldPrice < techSupport && goldPrice >= techSupport * 0.97);
+  const breakout       = data._signal?.breakout        ??
+    (techResistance > 0 && goldPrice >= techResistance * 0.98);
 
   let action, actionColor, actionDesc;
   if (breakout && normalized >= 4 && techScore >= 3) {
-    action="追多突破"; actionColor=COLORS.green; actionDesc="价格有效突破$5,000，趋势延续做多";
+    const resStr = techResistance ? `$${techResistance.toLocaleString()}` : "阻力位";
+    action="追多突破"; actionColor=COLORS.green; actionDesc=`价格有效突破${resStr}，趋势延续做多`;
   } else if ((inSupport||inDeepSupport) && normalized>=3 && techScore>=3) {
-    action="建仓做多"; actionColor=COLORS.gold; actionDesc="支撑区+技术确认叠加，分批建仓";
+    const supStr = techSupport ? `$${techSupport.toLocaleString()}` : "支撑区";
+    action="建仓做多"; actionColor=COLORS.gold; actionDesc=`${supStr}支撑+技术确认叠加，分批建仓`;
   } else if ((inSupport||inDeepSupport) && normalized>=2 && techScore>=2) {
     action="试探轻仓"; actionColor=COLORS.amber; actionDesc="条件初步满足，轻仓试探，等信号叠加";
   } else if (normalized<0) {
@@ -391,7 +434,8 @@ const computeScore = (data) => {
     action="持仓观望"; actionColor=COLORS.textSub; actionDesc="价格未到支撑区或信号不足，耐心等待";
   }
 
-  return { scoreItems, normalized, techScore, techItems, goldPrice, action, actionColor, actionDesc };
+  return { scoreItems, normalized, techScore, techItems, goldPrice, action, actionColor, actionDesc,
+           techSupport, techResistance, inSupport, inDeepSupport, breakout };
 };
 
 // ─── UI 组件 ─────────────────────────────────────────────────────────────────
@@ -615,7 +659,7 @@ export default function GoldSystemV2() {
                   {label:"站上50日均线",ok:techData.above_ma50,desc:`MA50: $${techData.ma50?.toLocaleString()}`},
                   {label:"站上200日均线",ok:techData.above_ma200,desc:`MA200: $${techData.ma200?.toLocaleString()}`},
                   {label:"RSI健康区间",ok:techData.rsi_healthy,desc:`当前RSI: ${techData.rsi}（35~65健康）`},
-                  {label:"RSI超卖区域",ok:techData.rsi_oversold,desc:"RSI<30，超卖反弹信号"},
+                  {label:"RSI底背离",ok:techData.rsi_divergence||false,desc:"价格创新低但RSI未创新低，反转信号"},
                   {label:"MACD多头",ok:techData.macd_positive,desc:"MACD在信号线上方"},
                   {label:"量能放大",ok:techData.volume_surge,desc:"近5日均量超20日均量130%"},
                 ].map((item,i)=>(
