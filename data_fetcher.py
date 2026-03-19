@@ -745,26 +745,44 @@ class GoldAPIHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
+            except BrokenPipeError:
+                # 客户端提前断开连接，忽略即可，不影响服务
+                pass
+            except ConnectionResetError:
+                # 连接被重置，同样忽略
+                pass
             except Exception as e:
-                err = json.dumps({"error": str(e)}).encode("utf-8")
-                self.send_response(500)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(err)
+                print(f"[ERROR] /api/gold 处理异常: {e}")
+                try:
+                    err = json.dumps({"error": str(e)}).encode("utf-8")
+                    self.send_response(500)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.send_header("Content-Length", str(len(err)))
+                    self.end_headers()
+                    self.wfile.write(err)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
         elif self.path == "/api/refresh":
             # 强制刷新缓存
-            _cache["ts"] = 0
-            data = get_cached_data()
-            body = json.dumps({"ok": True, "ts": _cache["ts"]}).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                _cache["ts"] = 0
+                data = get_cached_data()
+                body = json.dumps({"ok": True, "ts": _cache["ts"]}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
         else:
-            self.send_response(404)
-            self.end_headers()
+            try:
+                self.send_response(404)
+                self.end_headers()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def do_OPTIONS(self):
         # 处理浏览器预检请求
