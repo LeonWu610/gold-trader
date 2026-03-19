@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# 本地数据缓存（不需要上传）
+gold_signal.json
+log.json
+
+# React
+gold-trader/node_modules/
+gold-trader/build/
+
+# IDE
+.DS_Store
