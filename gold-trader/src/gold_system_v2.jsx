@@ -78,12 +78,12 @@ const fetchYahooPrice = async (symbol) => {
 // 申请地址：https://fred.stlouisfed.org/docs/api/api_key.html（5分钟）
 const FRED_KEY = "721dba314c828e61fa4d0bc748b32463"; // FRED API Key
 
-const fetchFredSeries = async (seriesId) => {
+const fetchFredSeries = async (seriesId, limit = 3) => {
   if (!FRED_KEY) {
     console.warn(`[FRED] ⚠️ ${seriesId} 跳过：未配置 FRED_KEY`);
     return null;
   }
-  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_KEY}&file_type=json&limit=3&sort_order=desc`;
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_KEY}&file_type=json&limit=${limit}&sort_order=desc`;
   console.log(`[FRED] 请求 ${seriesId}:`, url);
   try {
     const resp = await fetch(url);
@@ -95,6 +95,14 @@ const fetchFredSeries = async (seriesId) => {
     if (!obs.length) {
       console.warn(`[FRED] ${seriesId} 无有效观测值`);
       return null;
+    }
+    // CPI 同比计算：需要13条数据（最新月 + 12个月前）
+    if (seriesId === "CPIAUCSL" && obs.length >= 13) {
+      const latest   = parseFloat(obs[0].value);
+      const yearAgo  = parseFloat(obs[12].value);
+      const yoy = parseFloat(((latest - yearAgo) / yearAgo * 100).toFixed(2));
+      console.log(`[FRED] CPIAUCSL 同比: ${yoy}% (${latest} / ${yearAgo})`);
+      return { value: yoy, date: obs[0].date, index: latest };
     }
     const result = { value: parseFloat(obs[0].value), date: obs[0].date };
     console.log(`[FRED] ${seriesId} 解析结果:`, result);
@@ -166,8 +174,13 @@ const fetchFromLocalBackend = async (onProgress) => {
       breakeven:        fd["T10YIE"]?.value,
       // 从 signal 字段读取推算值和真实 ETF 流向
       fed_cut_prob:     raw.signal?.fed_cut_prob_est ?? null,
+      fed_cut_source:   raw.signal?.fed_cut_source ?? null,
       etf_flow:         raw.signal?.etf_flow ?? null,
       central_bank_buying: null,  // 明确无数据（WGC季度更新，仅作展示）
+      // VIX 地缘风险（后端已计算）
+      vix_value:        raw.signal?.vix?.value      ?? null,
+      vix_risk_level:   raw.signal?.vix?.risk_level ?? null,
+      vix_date:         raw.signal?.vix?.date       ?? null,
       // COT 持仓情绪（CFTC 官方，每周五更新）
       cot_net_long:     raw.signal?.cot?.net_long     ?? null,
       cot_net_pct:      raw.signal?.cot?.net_long_pct ?? null,
@@ -245,7 +258,7 @@ const fetchAllData = async (onProgress) => {
     if (!FRED_KEY) throw new Error("FRED key 未配置");
     const [tips, cpi, breakeven] = await Promise.all([
       fetchFredSeries("DFII10"),
-      fetchFredSeries("CPIAUCSL"),
+      fetchFredSeries("CPIAUCSL", 14),   // 需要14条才能算出同比（最新月 + 12个月前）
       fetchFredSeries("T10YIE"),
     ]);
     const tipsVal = tips?.value ?? 1.9;
@@ -256,13 +269,17 @@ const fetchAllData = async (onProgress) => {
       tips:         tips?.value,   tips_date: tips?.date,
       cpi:          cpiVal,        cpi_date:  cpi?.date,
       breakeven:    breakeven?.value,
-      // 与后端逻辑保持一致：用 TIPS 推算降息概率
+      // 与后端逻辑保持一致：用 TIPS 推算降息概率（降级路径无ZQ=F期货）
       fed_cut_prob: Math.max(10, Math.min(90, Math.round(100 - tipsVal * 30))),
+      fed_cut_source: "TIPS推算（降级模式）",
       // ETF 流向：降级路径只有价格涨跌数据，用 change_pct 粗略判断
       etf_flow: (result.price?.gld?.change_pct ?? 0) > 0.5  ? "流入"
               : (result.price?.gld?.change_pct ?? 0) < -0.5 ? "流出"
               : "持平",
       central_bank_buying: null,  // 无数据
+      // 降级路径无VIX数据，地缘风险字段留空
+      vix_value: null,
+      vix_risk_level: null,
     };
     result.sources.macro = "FRED API（直连）";
     console.log("[Step2] ✅ FRED 直连成功", result.macro);
@@ -364,8 +381,11 @@ const computeScore = (data) => {
         : (dxyVal<100?3:dxyVal<103?1:dxyVal<106?-1:-3),
       weight: 0.13 },
     // 央行购金已移除，改为独立展示字段（WGC季度更新，不适合做日度评分因子）
-    { layer:"宏观节奏", name:"降息预期（推算）",
-      value: fedProb !== null ? `${fedProb}%` : "推算中",
+    { layer:"宏观节奏",
+      name: data.macro.fed_cut_source
+        ? `降息预期（${data.macro.fed_cut_source}）`
+        : (fedProb !== null ? "降息预期（TIPS推算）" : "降息预期"),
+      value: fedProb !== null ? `${fedProb}%` : "获取中…",
       score: fedProb===null?0: fedProb>70?3:fedProb>50?2:fedProb>30?0:-2,
       weight: fedProb !== null ? 0.14 : 0 },
     { layer:"宏观节奏", name:"CPI通胀率",
@@ -377,12 +397,26 @@ const computeScore = (data) => {
       score: etfFlow==="流入"?2:etfFlow==="流出"?-2:etfFlow==="持平"?0:0,
       weight: etfFlow !== null ? 0.12 : 0 },
     // COT: 数据来自后端 CFTC 解析，score/weight 由后端决定
-    // 前端仅在后端不可用（降级路径）时显示"获取失败"
+    // 前端仅在后端不可用（降级路径）时显示占位行
     { layer:"情绪博弈", name:`COT多头情绪${macroData?.cot_date ? `（${macroData.cot_date}）` : ""}`,
       value: macroData?.cot_net_pct != null
         ? `${macroData.cot_net_pct > 0 ? "+" : ""}${macroData.cot_net_pct.toFixed(1)}% 净多`
-        : "无数据（仅后端模式可用）",
-      score: 0, weight: 0  // 降级路径不参与评分，评分由后端 scoreItems 处理
+        : macroData?.cot_sentiment ?? "无数据（需后端模式）",
+      score: macroData?.cot_net_pct != null
+        ? (macroData.cot_net_pct > 30 ? 2 : macroData.cot_net_pct > 10 ? 1 : macroData.cot_net_pct > -10 ? 0 : -2)
+        : 0,
+      weight: macroData?.cot_net_pct != null ? 0.10 : 0
+    },
+    // VIX 地缘风险：来自后端 ^VIX 指数（与后端 layer 保持一致：宏观结构）
+    { layer:"宏观结构",
+      name: `VIX地缘风险${macroData?.vix_value != null ? `（当前${macroData.vix_value}）` : ""}`,
+      value: macroData?.vix_value != null
+        ? `${macroData.vix_risk_level}风险 · VIX ${macroData.vix_value}`
+        : "无数据（需后端模式）",
+      score: macroData?.vix_value != null
+        ? (macroData.vix_value > 25 ? 3 : macroData.vix_value > 20 ? 2 : macroData.vix_value > 15 ? 0 : -1)
+        : 0,
+      weight: macroData?.vix_value != null ? 0.10 : 0
     },
   ];
 
@@ -615,10 +649,24 @@ export default function GoldSystemV2() {
           {activeTab==="overview" && analysis && (
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {[
-                {label:"黄金价格区间",value:analysis.goldPrice?`$${analysis.goldPrice?.toLocaleString()}`:"—",status:analysis.goldPrice>5000?"突破":analysis.goldPrice>=4700&&analysis.goldPrice<=4850?"支撑区":"区间外",sColor:analysis.goldPrice>5000?COLORS.green:analysis.goldPrice>=4700&&analysis.goldPrice<=4850?COLORS.gold:COLORS.textSub},
-                {label:"降息预期",value:macroData?.fed_cut_month?`${macroData.fed_cut_month} · ${macroData.fed_cut_prob}%`:"见宏观数据",status:macroData?.fed_cut_prob>60?"多":macroData?.fed_cut_prob>40?"中":"空",sColor:macroData?.fed_cut_prob>60?COLORS.green:macroData?.fed_cut_prob>40?COLORS.amber:COLORS.red},
+                {label:"黄金价格区间",value:analysis.goldPrice?`$${analysis.goldPrice?.toLocaleString()}`:"—",
+                  status: rawData?._signal?.breakout ? "突破阻力" :
+                         rawData?._signal?.in_deep_support ? "深度支撑" :
+                         rawData?._signal?.in_support ? "支撑区" :
+                         techData?.support && analysis.goldPrice < techData.support ? "跌破支撑" :
+                         techData?.resistance && analysis.goldPrice > techData.resistance ? "突破" : "区间内",
+                  sColor: rawData?._signal?.breakout ? COLORS.green :
+                         rawData?._signal?.in_deep_support ? COLORS.goldLight :
+                         rawData?._signal?.in_support ? COLORS.gold :
+                         techData?.support && analysis.goldPrice < techData.support ? COLORS.red : COLORS.textSub},
+                {label:"降息预期",
+                  value: macroData?.fed_cut_prob != null
+                    ? `${macroData.fed_cut_prob}% · ${macroData.fed_cut_source || "概率推算"}`
+                    : "—",
+                  status: macroData?.fed_cut_prob>60?"多":macroData?.fed_cut_prob>40?"中":macroData?.fed_cut_prob!=null?"空":"无",
+                  sColor: macroData?.fed_cut_prob>60?COLORS.green:macroData?.fed_cut_prob>40?COLORS.amber:macroData?.fed_cut_prob!=null?COLORS.red:COLORS.textSub},
                 {label:"ETF资金流向",value:macroData?.etf_flow||"—",status:macroData?.etf_flow==="流入"?"多":macroData?.etf_flow==="流出"?"空":"中",sColor:macroData?.etf_flow==="流入"?COLORS.green:macroData?.etf_flow==="流出"?COLORS.red:COLORS.amber},
-                {label:"地缘风险溢价",value:macroData?.geopolitical?`${macroData.geopolitical}风险`:"—",status:macroData?.geopolitical==="高"?"多":macroData?.geopolitical==="中"?"中":"无",sColor:macroData?.geopolitical==="高"?COLORS.green:COLORS.textSub},
+                {label:"地缘风险（VIX）",value:macroData?.vix_value!=null?`VIX ${macroData.vix_value} · ${macroData.vix_risk_level}风险`:"—",status:macroData?.vix_risk_level==="高"?"避险":macroData?.vix_risk_level==="中高"?"偏多":macroData?.vix_risk_level==="低"?"偏空":macroData?.vix_value!=null?"中性":"无",sColor:macroData?.vix_risk_level==="高"?COLORS.green:macroData?.vix_risk_level==="中高"?COLORS.amber:macroData?.vix_risk_level==="低"?COLORS.red:COLORS.textSub},
                 {label:"技术面综合",value:analysis?`${analysis.techScore}/6 项满足`:"—",status:analysis.techScore>=4?"强":analysis.techScore>=3?"中":"弱",sColor:analysis.techScore>=4?COLORS.green:analysis.techScore>=3?COLORS.amber:COLORS.red},
                 {label:"关键支撑/阻力",value:techData?`$${techData.support} / $${techData.resistance}`:"—",status:"参考",sColor:COLORS.textSub},
               ].map((item,i)=>(
