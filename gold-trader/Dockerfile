@@ -32,4 +32,4 @@ COPY --from=builder /app/build ./build
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["serve", "-s", "build", "--listen", "tcp://0.0.0.0:8080"]
+CMD serve -s build --listen tcp://0.0.0.0:$PORT
