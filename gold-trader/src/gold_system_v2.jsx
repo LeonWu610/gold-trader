@@ -401,6 +401,11 @@ const computeScore = (data) => {
       score: etfFlow==="流入"?2:etfFlow==="流出"?-2:etfFlow==="持平"?0:0,
       weight: etfFlow !== null ? 0.12 : 0 },
     // COT: 数据来自后端 CFTC 解析，这里用 data.macro（computeScore 函数参数）而不是 macroData
+    // 评分区间与后端 compute_signal_score 保持一致：
+    //   > 30%  → score=2（极端多头，情绪过热）
+    //   > 10%  → score=1（健康多头）
+    //   > -10% → score=0（中性）
+    //   ≤ -10% → score=-2（空头）
     { layer:"情绪博弈", name:`COT多头情绪${data.macro?.cot_date ? `（${data.macro.cot_date}）` : ""}`,
       value: data.macro?.cot_net_pct != null
         ? `${data.macro.cot_net_pct > 0 ? "+" : ""}${data.macro.cot_net_pct.toFixed(1)}% 净多`
@@ -408,7 +413,7 @@ const computeScore = (data) => {
       score: data.macro?.cot_net_pct != null
         ? (data.macro.cot_net_pct > 30 ? 2 : data.macro.cot_net_pct > 10 ? 1 : data.macro.cot_net_pct > -10 ? 0 : -2)
         : 0,
-      weight: data.macro?.cot_net_pct != null ? 0.10 : 0
+      weight: data.macro?.cot_net_pct != null ? 0.12 : 0
     },
     // VIX 地缘风险：来自后端 ^VIX 指数（与后端 layer 保持一致：宏观结构）
     { layer:"宏观结构",

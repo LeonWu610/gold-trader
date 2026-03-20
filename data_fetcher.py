@@ -329,16 +329,40 @@ def fetch_price_data() -> dict:
             print(f"  ⚠️  [GLD] 获取 totalAssets 失败: {e}")
 
         # 方案B：量价综合判断（fallback，精度较低）
+        # 注意：Yahoo Finance auto_adjust=True 理论上已除权，但偶尔在除权日仍有
+        # 数据异常（大幅跳空）。此处用量能 + 5日价格首尾趋势做综合判断，
+        # 并对极端单日涨跌（>3%）做平滑处理，避免除权数据干扰。
         if gld_hist_cache is not None:
             try:
-                gld_vol   = gld_hist_cache["Volume"].dropna().tail(5).tolist()
-                gld_close = gld_hist_cache["Close"].dropna().tail(5).tolist()
+                gld_vol   = gld_hist_cache["Volume"].dropna().tail(10).tolist()
+                gld_close = gld_hist_cache["Close"].dropna().tail(10).tolist()
                 if len(gld_vol) >= 5 and len(gld_close) >= 5:
-                    avg_vol_recent = sum(gld_vol[-2:]) / 2
-                    avg_vol_prior  = sum(gld_vol[:3]) / 3
-                    price_up = gld_close[-1] > gld_close[0]
-                    vol_up   = avg_vol_recent > avg_vol_prior * 1.1
-                    if price_up and vol_up:
+                    # 检测是否有除权跳空（相邻两天变化超3%）
+                    daily_changes = [
+                        abs(gld_close[i] - gld_close[i-1]) / gld_close[i-1]
+                        for i in range(1, len(gld_close))
+                    ]
+                    has_big_jump = any(chg > 0.03 for chg in daily_changes)
+
+                    if has_big_jump:
+                        # 除权日附近：改用更长周期（10日）的整体趋势，忽略单日异常
+                        price_up = gld_close[-1] > gld_close[0] if len(gld_close) >= 10 else None
+                        # 量能也用更长周期平均
+                        avg_vol_recent = sum(gld_vol[-3:]) / 3
+                        avg_vol_prior  = sum(gld_vol[:5]) / 5
+                        print(f"  ⚠️  [GLD] 检测到可能的除权跳空，改用10日趋势判断")
+                    else:
+                        # 正常情况：5日量价
+                        gld_vol5   = gld_vol[-5:]
+                        gld_close5 = gld_close[-5:]
+                        price_up   = gld_close5[-1] > gld_close5[0]
+                        avg_vol_recent = sum(gld_vol5[-2:]) / 2
+                        avg_vol_prior  = sum(gld_vol5[:3]) / 3
+
+                    vol_up = avg_vol_recent > avg_vol_prior * 1.1
+                    if price_up is None:
+                        etf_flow = "持平"  # 无法判断
+                    elif price_up and vol_up:
                         etf_flow = "流入"
                     elif not price_up and vol_up:
                         etf_flow = "流出"
@@ -831,9 +855,10 @@ def fetch_cot_data() -> dict:
                 "open_interest": oi,
                 "net_long_pct": net_pct,        # 净多头占总持仓比例%
                 "sentiment": (
-                    "极度多头" if net_pct is not None and net_pct > 30 else
+                    "极度多头" if net_pct is not None and net_pct > 40 else
                     "多头"     if net_pct is not None and net_pct > 15 else
-                    "中性"     if net_pct is not None and net_pct > -5 else
+                    "弱多头"   if net_pct is not None and net_pct > 0 else
+                    "中性"     if net_pct is not None and net_pct > -10 else
                     "空头"
                 ),
                 "update_day": "每周五15:30 ET",
@@ -880,7 +905,7 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
     fed_cut_source = fed_cut_data.get("source", None)
     if fed_cut_prob_futures is not None:
         fed_cut_prob_est = fed_cut_prob_futures
-        fed_cut_label = f"降息预期（ZQ=F期货，{fed_cut_source or ''}）"
+        fed_cut_label = f"降息预期（ZQ=F期货）"
     else:
         # TIPS 线性推算 fallback
         tips_for_fed = tips if tips is not None else 1.9
@@ -965,13 +990,15 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
     cot_sentiment = cot_data.get("sentiment", None)
     cot_date = cot_data.get("report_date", "")
     if cot_net_pct is not None:
-        # 净多占比 > 30% → 多头极端（可能过热，适度谨慎），15~30% 健康多头，<-5% 看空
-        if cot_net_pct > 40:
-            cot_score = 1   # 极端多头，情绪过热，略有反向风险
-        elif cot_net_pct > 15:
-            cot_score = 3   # 健康多头
-        elif cot_net_pct > 0:
-            cot_score = 1   # 弱多头
+        # 净多占比评分（与前端保持一致）：
+        #   > 30% → 极端多头，score=2（可能过热，略有反向风险）
+        #   > 10% → 健康多头，score=1
+        #   > -10% → 中性，score=0
+        #   ≤ -10% → 空头，score=-2
+        if cot_net_pct > 30:
+            cot_score = 2   # 极端多头，情绪过热
+        elif cot_net_pct > 10:
+            cot_score = 1   # 健康多头
         elif cot_net_pct > -10:
             cot_score = 0   # 中性
         else:

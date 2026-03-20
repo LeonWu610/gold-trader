@@ -1,0 +1,196 @@
+{
+    "timestamp": "2026-03-20T06:42:12.689440",
+    "data_sources": {
+        "price": {
+            "GC=F": {
+                "name": "黄金期货",
+                "price": 4682,
+                "change_pct": 1.77,
+                "volume": 39460,
+                "source": "Yahoo Finance"
+            },
+            "DX-Y.NYB": {
+                "name": "美元指数DXY",
+                "price": 99.41,
+                "change_pct": -0.68,
+                "volume": 0,
+                "source": "Yahoo Finance"
+            },
+            "GLD": {
+                "name": "黄金ETF",
+                "price": 426.41,
+                "change_pct": -4.12,
+                "volume": 30045015,
+                "source": "Yahoo Finance",
+                "holdings_oz_est": 39484051,
+                "total_assets": 184864325632,
+                "etf_flow": "流出"
+            },
+            "SPY": {
+                "name": "标普500",
+                "price": 659.8,
+                "change_pct": -0.25,
+                "volume": 110067392,
+                "source": "Yahoo Finance"
+            }
+        },
+        "macro": {
+            "DFII10": {
+                "name": "10年TIPS实际利率",
+                "value": 1.86,
+                "date": "2026-03-18"
+            },
+            "DTWEXBGS": {
+                "name": "美元广义指数",
+                "value": 120.5518,
+                "date": "2026-03-13"
+            },
+            "T10YIE": {
+                "name": "10年盈亏平衡通胀率",
+                "value": 2.37,
+                "date": "2026-03-19"
+            },
+            "CPIAUCSL": {
+                "name": "CPI同比通胀率",
+                "value": 2.66,
+                "date": "2026-02-01",
+                "index": 327.46
+            }
+        },
+        "technical": {
+            "price": 4681.9,
+            "ma20": 5076.58,
+            "ma50": 4954.04,
+            "ma200": 4063.75,
+            "above_ma20": false,
+            "above_ma50": false,
+            "above_ma200": true,
+            "rsi": 25.5,
+            "rsi_divergence": false,
+            "macd_cross": false,
+            "macd_above_signal": false,
+            "macd_value": -45.13,
+            "atr": 123.32,
+            "bb_upper": 5429.65,
+            "bb_lower": 4723.52,
+            "support": 4285,
+            "resistance": 5586,
+            "volume_surge": true
+        },
+        "cot": {
+            "source": "CFTC（官方）",
+            "report_date": "2026-03-10",
+            "net_long": 98399,
+            "long_positions": 125077,
+            "short_positions": 26678,
+            "open_interest": 413956,
+            "net_long_pct": 23.8,
+            "sentiment": "多头",
+            "update_day": "每周五15:30 ET"
+        },
+        "fed_cut": {
+            "prob": 36,
+            "implied_rate": 3.66,
+            "current_rate": 3.75,
+            "source": "ZQ=F（30天联邦基金期货）"
+        },
+        "vix": {
+            "value": 24.1,
+            "change": -1,
+            "risk_level": "中高",
+            "risk_desc": "风险温和上升",
+            "source": "CBOE VIX（yfinance）",
+            "date": "2026-03-19"
+        }
+    },
+    "signal": {
+        "gold_price": 4682,
+        "scores": [
+            {
+                "layer": "宏观结构",
+                "name": "实际利率TIPS",
+                "value": "1.86%",
+                "score": -1,
+                "weight": 0.13
+            },
+            {
+                "layer": "宏观结构",
+                "name": "美元指数DXY",
+                "value": "99.4 (DXY)",
+                "score": 3,
+                "weight": 0.13
+            },
+            {
+                "layer": "宏观结构",
+                "name": "VIX风险（中高）",
+                "value": "VIX 24.1",
+                "score": 2,
+                "weight": 0.1
+            },
+            {
+                "layer": "宏观节奏",
+                "name": "降息预期（ZQ=F期货，ZQ=F（30天联邦基金期货））",
+                "value": "36%",
+                "score": 0,
+                "weight": 0.14
+            },
+            {
+                "layer": "宏观节奏",
+                "name": "CPI同比通胀率",
+                "value": "2.66%",
+                "score": 1,
+                "weight": 0.13
+            },
+            {
+                "layer": "情绪博弈",
+                "name": "ETF资金流向",
+                "value": "流出",
+                "score": -2,
+                "weight": 0.12
+            },
+            {
+                "layer": "情绪博弈",
+                "name": "COT多头情绪（2026-03-10）",
+                "value": "+23.8% 净多（多头）",
+                "score": 3,
+                "weight": 0.12
+            }
+        ],
+        "normalized_score": 12,
+        "tech_score": 2,
+        "action": "持仓观望",
+        "fed_cut_prob_est": 36,
+        "fed_cut_source": "ZQ=F期货",
+        "etf_flow": "流出",
+        "dxy_source": "Yahoo Finance",
+        "tech_support": 4285,
+        "tech_resistance": 5586,
+        "atr": 123.32,
+        "in_support": false,
+        "in_deep_support": false,
+        "breakout": false,
+        "vix": {
+            "value": 24.1,
+            "risk_level": "中高",
+            "date": "2026-03-19",
+            "source": "CBOE VIX（yfinance）"
+        },
+        "cot": {
+            "net_long": 98399,
+            "net_long_pct": 23.8,
+            "sentiment": "多头",
+            "report_date": "2026-03-10",
+            "source": "CFTC（官方）"
+        },
+        "tech_details": {
+            "above_ma50": false,
+            "above_ma200": true,
+            "rsi": 25.5,
+            "rsi_divergence": false,
+            "macd_cross": false,
+            "support": 4285,
+            "resistance": 5586,
+            "atr": 123.32
+        }
+    }
+}
