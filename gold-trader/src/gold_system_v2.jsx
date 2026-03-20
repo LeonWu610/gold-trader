@@ -207,9 +207,13 @@ const fetchFromLocalBackend = async (onProgress) => {
     },
     // 后端已计算的布尔判断，前端直接读取避免重复硬编码
     _signal: {
-      in_support:      raw.signal?.in_support      ?? null,
-      in_deep_support: raw.signal?.in_deep_support ?? null,
-      breakout:        raw.signal?.breakout        ?? null,
+      in_support:       raw.signal?.in_support        ?? null,
+      in_deep_support:  raw.signal?.in_deep_support   ?? null,
+      breakout:         raw.signal?.breakout           ?? null,
+      // 后端综合评分：直接使用，跳过前端重复计算（避免权重不一致）
+      normalized_score: raw.signal?.normalized_score  ?? null,
+      tech_score:       raw.signal?.tech_score        ?? null,
+      action:           raw.signal?.action            ?? null,
     },
     sources: {
       price: `行情: ${goldSource} | DXY: ${dxySource} | ETF: ${pd["GLD"]?.source || "Yahoo Finance"}`,
@@ -453,22 +457,35 @@ const computeScore = (data) => {
   const breakout       = data._signal?.breakout        ??
     (techResistance > 0 && goldPrice >= techResistance * 0.98);
 
+  // ── 优先使用后端计算的综合评分（包含 VIX/COT 等前端无法直接算到的权重）
+  // 后端不可用（降级路径）时才退回前端本地计算结果
+  const normalizedFinal = data._signal?.normalized_score ?? normalized;
+  const techScoreFinal  = data._signal?.tech_score       ?? techScore;
+
+  // 交易信号文案：优先用后端 action 文字，但颜色和描述在前端本地生成
+  const backendAction = data._signal?.action ?? null;
+
   let action, actionColor, actionDesc;
-  if (breakout && normalized >= 4 && techScore >= 3) {
+  if (breakout && normalizedFinal >= 4 && techScoreFinal >= 3) {
     const resStr = techResistance ? `$${techResistance.toLocaleString()}` : "阻力位";
     action="追多突破"; actionColor=COLORS.green; actionDesc=`价格有效突破${resStr}，趋势延续做多`;
-  } else if ((inSupport||inDeepSupport) && normalized>=3 && techScore>=3) {
+  } else if ((inSupport||inDeepSupport) && normalizedFinal>=3 && techScoreFinal>=3) {
     const supStr = techSupport ? `$${techSupport.toLocaleString()}` : "支撑区";
     action="建仓做多"; actionColor=COLORS.gold; actionDesc=`${supStr}支撑+技术确认叠加，分批建仓`;
-  } else if ((inSupport||inDeepSupport) && normalized>=2 && techScore>=2) {
+  } else if ((inSupport||inDeepSupport) && normalizedFinal>=2 && techScoreFinal>=2) {
     action="试探轻仓"; actionColor=COLORS.amber; actionDesc="条件初步满足，轻仓试探，等信号叠加";
-  } else if (normalized<0) {
+  } else if (normalizedFinal<0) {
     action="观望空仓"; actionColor=COLORS.red; actionDesc="基本面转弱，等待评分回升";
   } else {
     action="持仓观望"; actionColor=COLORS.textSub; actionDesc="价格未到支撑区或信号不足，耐心等待";
   }
+  // 如果后端 action 与前端推导不同，以后端为准（后端掌握完整权重）
+  if (backendAction && backendAction !== action) {
+    action = backendAction;
+  }
 
-  return { scoreItems, normalized, techScore, techItems, goldPrice, action, actionColor, actionDesc,
+  return { scoreItems, normalized: normalizedFinal, techScore: techScoreFinal,
+           techItems, goldPrice, action, actionColor, actionDesc,
            techSupport, techResistance, inSupport, inDeepSupport, breakout };
 };
 

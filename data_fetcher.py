@@ -452,14 +452,15 @@ def fetch_fred_data(api_key: str) -> dict:
                     result[series_id] = {"error": str(e)}
 
     # ── CPIAUCSL：需要取13个月数据，计算同比增长率（年化%）
+    # limit=20 给足够余量：FRED 可能返回未发布月份的 '.' 占位符，过滤后确保 ≥ 13 条有效数据
     try:
         params = {
             "series_id": "CPIAUCSL",
             "api_key": api_key,
             "file_type": "json",
-            "limit": 14,
+            "limit": 20,
             "sort_order": "desc",
-            "observation_start": (datetime.date.today() - datetime.timedelta(days=400)).isoformat()
+            "observation_start": (datetime.date.today() - datetime.timedelta(days=600)).isoformat()
         }
         for attempt in range(3):
             try:
@@ -714,15 +715,24 @@ def fetch_cot_data() -> dict:
     """
     year = datetime.date.today().year
     # CFTC 每年维护一个 ZIP 文件，当年数据最全
+    # 备用 URL3：Legacy Futures-Only COT（不含期权，字段名不同但含同等净多头数据，用于 Disaggregated 下载失败时）
     urls_to_try = [
         f"https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year}.zip",
         f"https://www.cftc.gov/files/dea/history/fut_disagg_txt_{year - 1}.zip",
+        f"https://www.cftc.gov/files/dea/history/dea_fut_txt_{year}.zip",    # Legacy format 备用
     ]
+
+    # 模拟浏览器请求头，避免被 CFTC WAF 拦截
+    cot_headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
 
     for url in urls_to_try:
         try:
             print(f"  📥 [COT] 下载 {url}")
-            resp = requests.get(url, timeout=60)
+            resp = requests.get(url, headers=cot_headers, timeout=90)
             if resp.status_code != 200:
                 print(f"  ⚠️  [COT] HTTP {resp.status_code}，尝试下一个 URL")
                 continue
