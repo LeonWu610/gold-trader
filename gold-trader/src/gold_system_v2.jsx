@@ -214,6 +214,9 @@ const fetchFromLocalBackend = async (onProgress) => {
       normalized_score: raw.signal?.normalized_score  ?? null,
       tech_score:       raw.signal?.tech_score        ?? null,
       action:           raw.signal?.action            ?? null,
+      // 数据可靠性标记
+      etf_data_valid:   raw.signal?.etf_data_valid    ?? true,   // false = GLD/GC=F方向矛盾，ETF流向不可靠
+      vix_risk_off:     raw.signal?.vix_risk_off      ?? false,  // true = 黄金同步下跌，VIX避险失效
     },
     sources: {
       price: `行情: ${goldSource} | DXY: ${dxySource} | ETF: ${pd["GLD"]?.source || "Yahoo Finance"}`,
@@ -640,6 +643,12 @@ export default function GoldSystemV2() {
                     <span style={{fontSize:26,fontWeight:700,fontFamily:"'Space Mono',monospace",color:analysis.actionColor,textShadow:`0 0 20px ${analysis.actionColor}50`}}>{analysis.action}</span>
                   </div>
                   <div style={{fontSize:13,color:COLORS.textSub}}>{analysis.actionDesc}</div>
+                  {/* 高分但不在入场区：解释性提示，防止用户误解 */}
+                  {analysis.normalized >= 4 && analysis.action === "持仓观望" && (
+                    <div style={{marginTop:8,fontSize:11,color:COLORS.amber,background:`${COLORS.amber}12`,border:`0.5px solid ${COLORS.amber}30`,borderRadius:4,padding:"5px 10px",display:"inline-block"}}>
+                      ⚠ 宏观评分较高，但价格偏离支撑区，等待价格回调至支撑位再行入场
+                    </div>
+                  )}
                 </div>
                 <div style={{display:"flex",gap:24}}>
                   <div style={{textAlign:"center"}}>
@@ -686,8 +695,26 @@ export default function GoldSystemV2() {
                     : "—",
                   status: macroData?.fed_cut_prob>60?"多":macroData?.fed_cut_prob>40?"中":macroData?.fed_cut_prob!=null?"空":"无",
                   sColor: macroData?.fed_cut_prob>60?COLORS.green:macroData?.fed_cut_prob>40?COLORS.amber:macroData?.fed_cut_prob!=null?COLORS.red:COLORS.textSub},
-                {label:"ETF资金流向",value:macroData?.etf_flow||"—",status:macroData?.etf_flow==="流入"?"多":macroData?.etf_flow==="流出"?"空":"中",sColor:macroData?.etf_flow==="流入"?COLORS.green:macroData?.etf_flow==="流出"?COLORS.red:COLORS.amber},
-                {label:"地缘风险（VIX）",value:macroData?.vix_value!=null?`VIX ${macroData.vix_value} · ${macroData.vix_risk_level}风险`:"—",status:macroData?.vix_risk_level==="高"?"避险":macroData?.vix_risk_level==="中高"?"偏多":macroData?.vix_risk_level==="低"?"偏空":macroData?.vix_value!=null?"中性":"无",sColor:macroData?.vix_risk_level==="高"?COLORS.green:macroData?.vix_risk_level==="中高"?COLORS.amber:macroData?.vix_risk_level==="低"?COLORS.red:COLORS.textSub},
+                // ETF：若数据疑问（GLD与GC=F方向矛盾）则加注警示
+                {label:"ETF资金流向",
+                  value: rawData?._signal?.etf_data_valid === false
+                    ? `${macroData?.etf_flow || "—"} ⚠数据疑问`
+                    : (macroData?.etf_flow || "—"),
+                  status: rawData?._signal?.etf_data_valid === false ? "待确认"
+                    : macroData?.etf_flow==="流入"?"多":macroData?.etf_flow==="流出"?"空":"中",
+                  sColor: rawData?._signal?.etf_data_valid === false ? COLORS.textDim
+                    : macroData?.etf_flow==="流入"?COLORS.green:macroData?.etf_flow==="流出"?COLORS.red:COLORS.amber},
+                // VIX：若黄金同步大跌（risk-off抛售）则显示避险失效警示
+                {label:"地缘风险（VIX）",
+                  value: macroData?.vix_value!=null
+                    ? (rawData?._signal?.vix_risk_off
+                        ? `VIX ${macroData.vix_value} · 避险失效`
+                        : `VIX ${macroData.vix_value} · ${macroData.vix_risk_level}风险`)
+                    : "—",
+                  status: rawData?._signal?.vix_risk_off ? "失效"
+                    : macroData?.vix_risk_level==="高"?"避险":macroData?.vix_risk_level==="中高"?"偏多":macroData?.vix_risk_level==="低"?"偏空":macroData?.vix_value!=null?"中性":"无",
+                  sColor: rawData?._signal?.vix_risk_off ? COLORS.textDim
+                    : macroData?.vix_risk_level==="高"?COLORS.green:macroData?.vix_risk_level==="中高"?COLORS.amber:macroData?.vix_risk_level==="低"?COLORS.red:COLORS.textSub},
                 {label:"技术面综合",value:analysis?`${analysis.techScore}/6 项满足`:"—",status:analysis.techScore>=4?"强":analysis.techScore>=3?"中":"弱",sColor:analysis.techScore>=4?COLORS.green:analysis.techScore>=3?COLORS.amber:COLORS.red},
                 {label:"关键支撑/阻力",value:techData?`$${techData.support} / $${techData.resistance}`:"—",status:"参考",sColor:COLORS.textSub},
               ].map((item,i)=>(

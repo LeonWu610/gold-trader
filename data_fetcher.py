@@ -888,6 +888,8 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
         vix_data = {}
 
     gold_price = price_data.get("GC=F", {}).get("price", 0)
+    # 黄金当日涨跌幅：供 VIX/ETF 条件判断使用（提前提取，避免重复）
+    gold_change_pct = price_data.get("GC=F", {}).get("change_pct", 0) or 0
     # DXY：优先用 price_data 里的 Yahoo Finance DXY（90-110范围），
     #       fallback 时 price_data 里存的是 FRED DTWEXBGS（基期2006=100，当前~120）
     dxy_raw = price_data.get("DX-Y.NYB", {}).get("price", 104)
@@ -913,7 +915,19 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
         fed_cut_label = "降息预期（TIPS推算，精度较低）"
 
     # ETF 流向：从 price_data 中读取（已在 fetch_price_data 里计算）
-    etf_flow = price_data.get("GLD", {}).get("etf_flow", None)
+    # ⚠️ 一致性校验：GLD 与 GC=F 在同一交易日应高度相关。
+    #    若两者涨跌方向相反且差距 > 3%，大概率是 yfinance 的"前收盘日期不一致"数据问题，
+    #    此时 GLD change_pct 不可靠，ETF 流向标记无效，不参与评分。
+    etf_flow_raw = price_data.get("GLD", {}).get("etf_flow", None)
+    gld_change_pct = price_data.get("GLD", {}).get("change_pct", None)
+    gc_change_pct  = gold_change_pct  # 已在上方提取
+    etf_data_valid = True
+    if (gld_change_pct is not None and gc_change_pct is not None and
+            abs(gld_change_pct - gc_change_pct) > 3.0 and
+            gld_change_pct * gc_change_pct < 0):   # 方向相反
+        etf_data_valid = False
+        print(f"  ⚠️  [ETF] GLD({gld_change_pct:+.2f}%) 与 GC=F({gc_change_pct:+.2f}%) 方向矛盾，ETF流向数据疑问，不参与评分")
+    etf_flow = etf_flow_raw if etf_data_valid else None
 
     # 宏观结构层（40%权重）
     tips_score = 3 if tips < 1.5 else (-1 if tips < 2.0 else -2)
@@ -934,23 +948,32 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
     # 后续可接入 WGC 季度报告作为展示数据
 
     # VIX 地缘/市场风险（代理变量）
+    # ⚠️ 条件判断：VIX高 + 黄金当日大跌（> -2%）= risk-off 系统性抛售，
+    #    此时资金逃离风险资产（包括黄金），VIX的"避险利好黄金"逻辑失效，评分归零。
+    #    VIX高 + 黄金稳定或上涨 = 真实避险流入黄金，给正分。
+    # （gold_change_pct 已在函数顶部提取，此处直接使用）
     vix_value = vix_data.get("value", None)
     vix_risk_level = vix_data.get("risk_level", "未知")
     vix_date = vix_data.get("date", "")
     if vix_value is not None:
-        # VIX > 25: 风险高，利好黄金（避险）
-        # VIX < 15: 风险低，中性
-        # 15-25: 中性
-        if vix_value > 25:
-            vix_score = 3   # 高风险，黄金避险需求强
-        elif vix_value > 20:
-            vix_score = 2   # 中高风险，温和利好
-        elif vix_value > 15:
-            vix_score = 0   # 中性
+        risk_off_selldown = (gold_change_pct < -2.0 and vix_value > 20)
+        if risk_off_selldown:
+            # 系统性抛售：黄金与VIX同步恶化，VIX的避险信号对黄金失效
+            vix_score = 0
+            vix_label = f"VIX风险（{vix_risk_level}，黄金同步下跌·避险失效）"
+            print(f"  ⚠️  [VIX] risk-off 抛售（金价{gold_change_pct:+.1f}%，VIX={vix_value}），VIX评分归零")
         else:
-            vix_score = -1  # 风险偏好好，黄金避险需求弱
+            # 正常避险逻辑：VIX高 = 避险需求流入黄金
+            if vix_value > 25:
+                vix_score = 3   # 高风险，黄金避险需求强
+            elif vix_value > 20:
+                vix_score = 2   # 中高风险，温和利好
+            elif vix_value > 15:
+                vix_score = 0   # 中性
+            else:
+                vix_score = -1  # 风险偏好好，黄金避险需求弱
+            vix_label = f"VIX风险（{vix_risk_level}）"
         vix_weight = 0.10
-        vix_label = f"VIX风险（{vix_risk_level}）"
     else:
         vix_score = 0
         vix_weight = 0
@@ -1070,6 +1093,8 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
         "fed_cut_prob_est": fed_cut_prob_est,
         "fed_cut_source":   "ZQ=F期货" if fed_cut_prob_futures is not None else "TIPS推算",
         "etf_flow": etf_flow if etf_flow != "无数据" else None,
+        "etf_data_valid": etf_data_valid,   # False 表示 GLD/GC=F 涨跌方向矛盾，ETF流向不可靠
+        "vix_risk_off": risk_off_selldown if vix_value is not None else False,  # True 表示黄金同步下跌，VIX避险逻辑失效
         "dxy_source": dxy_source,
         # 动态支撑阻力：传给前端用于信号判断，避免前端硬编码
         "tech_support":    tech_support,

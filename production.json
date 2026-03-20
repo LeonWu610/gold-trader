@@ -1,12 +1,12 @@
 {
-    "timestamp": "2026-03-20T06:42:12.689440",
+    "timestamp": "2026-03-20T06:57:14.465987",
     "data_sources": {
         "price": {
             "GC=F": {
                 "name": "黄金期货",
-                "price": 4682,
-                "change_pct": 1.77,
-                "volume": 39460,
+                "price": 4675.3,
+                "change_pct": 1.62,
+                "volume": 41839,
                 "source": "Yahoo Finance"
             },
             "DX-Y.NYB": {
@@ -22,7 +22,7 @@
                 "change_pct": -4.12,
                 "volume": 30045015,
                 "source": "Yahoo Finance",
-                "holdings_oz_est": 39484051,
+                "holdings_oz_est": 39540634,
                 "total_assets": 184864325632,
                 "etf_flow": "流出"
             },
@@ -58,21 +58,21 @@
             }
         },
         "technical": {
-            "price": 4681.9,
-            "ma20": 5076.58,
-            "ma50": 4954.04,
-            "ma200": 4063.75,
+            "price": 4675.4,
+            "ma20": 5076.26,
+            "ma50": 4953.91,
+            "ma200": 4063.72,
             "above_ma20": false,
             "above_ma50": false,
             "above_ma200": true,
-            "rsi": 25.5,
+            "rsi": 25.2,
             "rsi_divergence": false,
             "macd_cross": false,
             "macd_above_signal": false,
-            "macd_value": -45.13,
+            "macd_value": -45.65,
             "atr": 123.32,
-            "bb_upper": 5429.65,
-            "bb_lower": 4723.52,
+            "bb_upper": 5430.87,
+            "bb_lower": 4721.65,
             "support": 4285,
             "resistance": 5586,
             "volume_surge": true
@@ -104,7 +104,7 @@
         }
     },
     "signal": {
-        "gold_price": 4682,
+        "gold_price": 4675.3,
         "scores": [
             {
                 "layer": "宏观结构",
@@ -129,7 +129,7 @@
             },
             {
                 "layer": "宏观节奏",
-                "name": "降息预期（ZQ=F期货，ZQ=F（30天联邦基金期货））",
+                "name": "降息预期（ZQ=F期货）",
                 "value": "36%",
                 "score": 0,
                 "weight": 0.14
@@ -152,11 +152,11 @@
                 "layer": "情绪博弈",
                 "name": "COT多头情绪（2026-03-10）",
                 "value": "+23.8% 净多（多头）",
-                "score": 3,
+                "score": 1,
                 "weight": 0.12
             }
         ],
-        "normalized_score": 12,
+        "normalized_score": 8,
         "tech_score": 2,
         "action": "持仓观望",
         "fed_cut_prob_est": 36,
@@ -185,7 +185,7 @@
         "tech_details": {
             "above_ma50": false,
             "above_ma200": true,
-            "rsi": 25.5,
+            "rsi": 25.2,
             "rsi_divergence": false,
             "macd_cross": false,
             "support": 4285,
