@@ -1204,6 +1204,8 @@ export default function GoldSystemV2() {
           </div>
         </div>
       </div>
+      {/* 指标说明弹窗 */}
+      {infoModal && <InfoModal info={infoModal} onClose={() => setInfoModal(null)} />}
     </>
   );
 }
