@@ -766,11 +766,36 @@ def fetch_cot_data() -> dict:
             latest = gold_df.iloc[0]
 
             # 非商业（投机）净多头 = Long - Short
-            long_col  = next((c for c in df.columns if "noncomm" in c.lower() and "long"  in c.lower() and "all" in c.lower()), None)
-            short_col = next((c for c in df.columns if "noncomm" in c.lower() and "short" in c.lower() and "all" in c.lower()), None)
+            # CFTC Disaggregated 列名示例（含空格/下划线，各年可能略有不同）：
+            #   "NonComm_Positions_Long_All"  / "NonComm_Positions_Long_All_"
+            #   "Noncommercial Long"          (旧版 Legacy 格式)
+            # 策略：先找同时含 noncomm+long 且不含 short/spread 的列；再退而求其次放宽条件
+            cols_lower = {c: c.lower() for c in df.columns}
+            print(f"  🔍 [COT] 实际列名片段（含noncomm）: "
+                  f"{[c for c in df.columns if 'noncomm' in c.lower()][:15]}")
+
+            def find_col(must_contain, must_not_contain=None):
+                for c, cl in cols_lower.items():
+                    if all(k in cl for k in must_contain):
+                        if must_not_contain and any(k in cl for k in must_not_contain):
+                            continue
+                        return c
+                return None
+
+            # 优先匹配 Disaggregated 格式（含 "all"）
+            long_col  = find_col(["noncomm", "long"],  ["short", "spread", "delta"])
+            short_col = find_col(["noncomm", "short"], ["long",  "spread", "delta"])
+
+            # fallback：不要求含 "all"，只要含 noncomm + long/short
+            if long_col is None:
+                long_col  = find_col(["noncomm", "positions", "long"],  ["short", "spread"])
+            if short_col is None:
+                short_col = find_col(["noncomm", "positions", "short"], ["long",  "spread"])
+
+            print(f"  🔍 [COT] 匹配到列 → long={long_col}, short={short_col}")
 
             if long_col is None or short_col is None:
-                print(f"  ⚠️  [COT] 找不到 NonComm Long/Short 列")
+                print(f"  ⚠️  [COT] 找不到 NonComm Long/Short 列，全部列名: {list(df.columns)}")
                 continue
 
             net_long   = int(latest[long_col]) - int(latest[short_col])
