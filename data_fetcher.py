@@ -1243,68 +1243,56 @@ def get_cached_data():
 
 # ─── HTTP 请求处理器 ──────────────────────────────────────────────────────────
 class GoldAPIHandler(BaseHTTPRequestHandler):
+
+    # ── 辅助方法：发送 JSON 响应（含 CORS 头）────────────────────────────────
+    def _send_json(self, payload: dict, status: int = 200) -> None:
+        """将 payload 序列化为 JSON 并写回响应，自动附加 CORS 头。"""
+        body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin",  "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
-        # 允许前端跨域访问（CORS）
-        if self.path == "/api/gold" or self.path == "/api/gold/":
-            try:
+        try:
+            if self.path in ("/api/gold", "/api/gold/"):
+                # 主数据接口：返回缓存的黄金交易信号数据
                 data = get_cached_data()
-                body = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            except BrokenPipeError:
-                # 客户端提前断开连接，忽略即可，不影响服务
-                pass
-            except ConnectionResetError:
-                # 连接被重置，同样忽略
-                pass
-            except Exception as e:
-                print(f"[ERROR] /api/gold 处理异常: {e}")
-                try:
-                    err = json.dumps({"error": str(e)}).encode("utf-8")
-                    self.send_response(500)
-                    self.send_header("Content-Type", "application/json")
-                    self.send_header("Access-Control-Allow-Origin", "*")
-                    self.send_header("Content-Length", str(len(err)))
-                    self.end_headers()
-                    self.wfile.write(err)
-                except (BrokenPipeError, ConnectionResetError):
-                    pass
-        elif self.path == "/api/refresh":
-            # 强制刷新缓存
-            try:
+                self._send_json(data)
+
+            elif self.path == "/api/refresh":
+                # 强制使缓存失效，触发后台重新抓取
                 _cache["ts"] = 0
-                data = get_cached_data()
-                body = json.dumps({"ok": True, "ts": _cache["ts"]}).encode("utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-            except (BrokenPipeError, ConnectionResetError):
-                pass
-        else:
-            try:
+                get_cached_data()
+                self._send_json({"ok": True, "ts": _cache["ts"]})
+
+            else:
                 self.send_response(404)
                 self.end_headers()
+
+        except (BrokenPipeError, ConnectionResetError):
+            # 客户端提前断开，忽略，不影响服务稳定性
+            pass
+        except Exception as e:
+            print(f"[HTTP][ERROR] {self.path} 处理异常: {e}")
+            try:
+                self._send_json({"error": str(e)}, status=500)
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
     def do_OPTIONS(self):
-        # 处理浏览器预检请求
+        # 处理浏览器 CORS 预检请求
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin",  "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def log_message(self, format, *args):
-        # 简化请求日志
+        # 简化请求日志（避免默认格式中的 stderr 输出）
         print(f"[HTTP] {self.address_string()} {format % args}")
 
 
