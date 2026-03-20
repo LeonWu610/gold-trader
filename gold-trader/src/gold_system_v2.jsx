@@ -400,27 +400,26 @@ const computeScore = (data) => {
       value: etfFlow ?? "无数据",
       score: etfFlow==="流入"?2:etfFlow==="流出"?-2:etfFlow==="持平"?0:0,
       weight: etfFlow !== null ? 0.12 : 0 },
-    // COT: 数据来自后端 CFTC 解析，score/weight 由后端决定
-    // 前端仅在后端不可用（降级路径）时显示占位行
-    { layer:"情绪博弈", name:`COT多头情绪${macroData?.cot_date ? `（${macroData.cot_date}）` : ""}`,
-      value: macroData?.cot_net_pct != null
-        ? `${macroData.cot_net_pct > 0 ? "+" : ""}${macroData.cot_net_pct.toFixed(1)}% 净多`
-        : macroData?.cot_sentiment ?? "无数据（需后端模式）",
-      score: macroData?.cot_net_pct != null
-        ? (macroData.cot_net_pct > 30 ? 2 : macroData.cot_net_pct > 10 ? 1 : macroData.cot_net_pct > -10 ? 0 : -2)
+    // COT: 数据来自后端 CFTC 解析，这里用 data.macro（computeScore 函数参数）而不是 macroData
+    { layer:"情绪博弈", name:`COT多头情绪${data.macro?.cot_date ? `（${data.macro.cot_date}）` : ""}`,
+      value: data.macro?.cot_net_pct != null
+        ? `${data.macro.cot_net_pct > 0 ? "+" : ""}${data.macro.cot_net_pct.toFixed(1)}% 净多`
+        : data.macro?.cot_sentiment ?? "无数据（需后端模式）",
+      score: data.macro?.cot_net_pct != null
+        ? (data.macro.cot_net_pct > 30 ? 2 : data.macro.cot_net_pct > 10 ? 1 : data.macro.cot_net_pct > -10 ? 0 : -2)
         : 0,
-      weight: macroData?.cot_net_pct != null ? 0.10 : 0
+      weight: data.macro?.cot_net_pct != null ? 0.10 : 0
     },
     // VIX 地缘风险：来自后端 ^VIX 指数（与后端 layer 保持一致：宏观结构）
     { layer:"宏观结构",
-      name: `VIX地缘风险${macroData?.vix_value != null ? `（当前${macroData.vix_value}）` : ""}`,
-      value: macroData?.vix_value != null
-        ? `${macroData.vix_risk_level}风险 · VIX ${macroData.vix_value}`
+      name: `VIX地缘风险${data.macro?.vix_value != null ? `（当前${data.macro.vix_value}）` : ""}`,
+      value: data.macro?.vix_value != null
+        ? `${data.macro.vix_risk_level}风险 · VIX ${data.macro.vix_value}`
         : "无数据（需后端模式）",
-      score: macroData?.vix_value != null
-        ? (macroData.vix_value > 25 ? 3 : macroData.vix_value > 20 ? 2 : macroData.vix_value > 15 ? 0 : -1)
+      score: data.macro?.vix_value != null
+        ? (data.macro.vix_value > 25 ? 3 : data.macro.vix_value > 20 ? 2 : data.macro.vix_value > 15 ? 0 : -1)
         : 0,
-      weight: macroData?.vix_value != null ? 0.10 : 0
+      weight: data.macro?.vix_value != null ? 0.10 : 0
     },
   ];
 

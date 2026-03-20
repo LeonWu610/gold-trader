@@ -766,36 +766,48 @@ def fetch_cot_data() -> dict:
             latest = gold_df.iloc[0]
 
             # 非商业（投机）净多头 = Long - Short
-            # CFTC Disaggregated 列名示例（含空格/下划线，各年可能略有不同）：
-            #   "NonComm_Positions_Long_All"  / "NonComm_Positions_Long_All_"
-            #   "Noncommercial Long"          (旧版 Legacy 格式)
-            # 策略：先找同时含 noncomm+long 且不含 short/spread 的列；再退而求其次放宽条件
-            cols_lower = {c: c.lower() for c in df.columns}
-            print(f"  🔍 [COT] 实际列名片段（含noncomm）: "
-                  f"{[c for c in df.columns if 'noncomm' in c.lower()][:15]}")
+            # CFTC 报告格式说明（两种格式，列名不同）：
+            #   Disaggregated 格式（当前）：
+            #     "M_Money_Positions_Long_All"  / "M_Money_Positions_Short_All"
+            #     M_Money = Managed Money = 等价于旧版 NonCommercial（非商业投机资金）
+            #   Legacy 格式（旧版）：
+            #     "NonComm_Positions_Long_All" / "NonComm_Positions_Short_All"
+            # 策略：优先精确匹配已知列名，再做模糊匹配兜底
+            LONG_COL_CANDIDATES  = [
+                "M_Money_Positions_Long_All",    # Disaggregated 格式（首选）
+                "NonComm_Positions_Long_All",    # Legacy 格式
+                "NonComm_Positions_Long_All_",   # Legacy 格式（带尾下划线变体）
+            ]
+            SHORT_COL_CANDIDATES = [
+                "M_Money_Positions_Short_All",   # Disaggregated 格式（首选）
+                "NonComm_Positions_Short_All",   # Legacy 格式
+                "NonComm_Positions_Short_All_",  # Legacy 格式（带尾下划线变体）
+            ]
 
-            def find_col(must_contain, must_not_contain=None):
-                for c, cl in cols_lower.items():
-                    if all(k in cl for k in must_contain):
-                        if must_not_contain and any(k in cl for k in must_not_contain):
-                            continue
-                        return c
-                return None
+            long_col  = next((c for c in LONG_COL_CANDIDATES  if c in df.columns), None)
+            short_col = next((c for c in SHORT_COL_CANDIDATES if c in df.columns), None)
 
-            # 优先匹配 Disaggregated 格式（含 "all"）
-            long_col  = find_col(["noncomm", "long"],  ["short", "spread", "delta"])
-            short_col = find_col(["noncomm", "short"], ["long",  "spread", "delta"])
-
-            # fallback：不要求含 "all"，只要含 noncomm + long/short
-            if long_col is None:
-                long_col  = find_col(["noncomm", "positions", "long"],  ["short", "spread"])
-            if short_col is None:
-                short_col = find_col(["noncomm", "positions", "short"], ["long",  "spread"])
+            # 最终 fallback：模糊搜索（含 m_money 或 noncomm，且 long/short 不混淆）
+            if long_col is None or short_col is None:
+                cols_lower = {c: c.lower() for c in df.columns}
+                def find_col(must_contain, must_not_contain=None):
+                    for c, cl in cols_lower.items():
+                        if all(k in cl for k in must_contain):
+                            if must_not_contain and any(k in cl for k in must_not_contain):
+                                continue
+                            return c
+                    return None
+                if long_col is None:
+                    long_col  = (find_col(["m_money", "long"],   ["short", "spread"])
+                              or find_col(["noncomm", "long"],   ["short", "spread"]))
+                if short_col is None:
+                    short_col = (find_col(["m_money", "short"],  ["long",  "spread"])
+                              or find_col(["noncomm", "short"],  ["long",  "spread"]))
 
             print(f"  🔍 [COT] 匹配到列 → long={long_col}, short={short_col}")
 
             if long_col is None or short_col is None:
-                print(f"  ⚠️  [COT] 找不到 NonComm Long/Short 列，全部列名: {list(df.columns)}")
+                print(f"  ⚠️  [COT] 找不到目标列，实际列名（前30列）: {list(df.columns[:30])}")
                 continue
 
             net_long   = int(latest[long_col]) - int(latest[short_col])
