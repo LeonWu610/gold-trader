@@ -388,21 +388,22 @@ const computeScore = (data) => {
         : (dxyVal<100?3:dxyVal<103?1:dxyVal<106?-1:-3),
       weight: 0.13 },
     // 央行购金已移除，改为独立展示字段（WGC季度更新，不适合做日度评分因子）
+    // ⚠️ 各项无数据时 score=0 但 weight 始终保留，防止分母缩水导致评分虚高
     { layer:"宏观节奏",
       name: data.macro.fed_cut_source
         ? `降息预期（${data.macro.fed_cut_source}）`
         : (fedProb !== null ? "降息预期（TIPS推算）" : "降息预期"),
       value: fedProb !== null ? `${fedProb}%` : "获取中…",
       score: fedProb===null?0: fedProb>70?3:fedProb>50?2:fedProb>30?0:-2,
-      weight: fedProb !== null ? 0.14 : 0 },
+      weight: 0.14 },
     { layer:"宏观节奏", name:"CPI通胀率",
       value: cpi !== null ? `${(+cpi).toFixed(2)}%` : "数据异常",
       score: cpi===null?0: cpi<2.5?3:cpi<3.0?1:cpi<3.5?-1:-2,
-      weight: cpi !== null ? 0.13 : 0 },
+      weight: 0.13 },
     { layer:"情绪博弈", name:"ETF资金流向",
       value: etfFlow ?? "无数据",
       score: etfFlow==="流入"?2:etfFlow==="流出"?-2:etfFlow==="持平"?0:0,
-      weight: etfFlow !== null ? 0.12 : 0 },
+      weight: 0.12 },
     // COT: 数据来自后端 CFTC 解析，这里用 data.macro（computeScore 函数参数）而不是 macroData
     // 评分区间与后端 compute_signal_score 保持一致：
     //   > 30%  → score=2（极端多头，情绪过热）
@@ -416,9 +417,11 @@ const computeScore = (data) => {
       score: data.macro?.cot_net_pct != null
         ? (data.macro.cot_net_pct > 30 ? 2 : data.macro.cot_net_pct > 10 ? 1 : data.macro.cot_net_pct > -10 ? 0 : -2)
         : 0,
-      weight: data.macro?.cot_net_pct != null ? 0.12 : 0
+      weight: 0.12
     },
     // VIX 地缘风险：来自后端 ^VIX 指数（与后端 layer 保持一致：宏观结构）
+    // 评分与后端对齐: VIX>25+金价未大跌→score=3, VIX>20→score=2, >15→score=0, 其他→score=-1
+    // risk-off場景（黄金同步大跌）展示由后端 vix_risk_off 控制，前端只做展示
     { layer:"宏观结构",
       name: `VIX地缘风险${data.macro?.vix_value != null ? `（当前${data.macro.vix_value}）` : ""}`,
       value: data.macro?.vix_value != null
@@ -427,7 +430,7 @@ const computeScore = (data) => {
       score: data.macro?.vix_value != null
         ? (data.macro.vix_value > 25 ? 3 : data.macro.vix_value > 20 ? 2 : data.macro.vix_value > 15 ? 0 : -1)
         : 0,
-      weight: data.macro?.vix_value != null ? 0.10 : 0
+      weight: 0.10
     },
   ];
 

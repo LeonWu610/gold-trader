@@ -964,8 +964,11 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
             print(f"  ⚠️  [VIX] risk-off 抛售（金价{gold_change_pct:+.1f}%，VIX={vix_value}），VIX评分归零")
         else:
             # 正常避险逻辑：VIX高 = 避险需求流入黄金
+            # ⚠️ VIX>25 给 score=3 的最高档需要黄金自身未大跌（防止单因子虚高）：
+            #   VIX>25 + 金价稳（>-1%）= 强避险流入 → score=3
+            #   VIX>25 + 金价轻微下跌（-1%~-2%）= 避险减弱  → score=2
             if vix_value > 25:
-                vix_score = 3   # 高风险，黄金避险需求强
+                vix_score = 3 if gold_change_pct >= -1.0 else 2  # 金价轻跌时略减
             elif vix_value > 20:
                 vix_score = 2   # 中高风险，温和利好
             elif vix_value > 15:
@@ -988,25 +991,25 @@ def compute_signal_score(price_data: dict, fred_data: dict, tech_data: dict,
 
     # 宏观节奏层（35%权重）
     # CPI 同比%：适度通胀利好黄金，通胀过高或过低均有副作用
+    # ⚠️ 无数据时 score=0 但 weight 保留（防止分母缩水拉高虚分）
     if cpi is not None:
         cpi_score = 3 if cpi < 2.5 else (1 if cpi < 3.0 else (-1 if cpi < 3.5 else -2))
-        cpi_weight = 0.13
         cpi_value = f"{cpi:.2f}%"
     else:
         cpi_score = 0
-        cpi_weight = 0
         cpi_value = "数据异常"
-    scores.append({"layer": "宏观节奏", "name": "CPI同比通胀率", "value": cpi_value, "score": cpi_score, "weight": cpi_weight})
+    scores.append({"layer": "宏观节奏", "name": "CPI同比通胀率", "value": cpi_value, "score": cpi_score, "weight": 0.13})
 
     # ETF 资金流向
+    # ⚠️ 无数据（获取失败或数据校验不通过）时 score=0 但 weight 保留 0.12，
+    #    防止分母从 0.87 缩到 0.75，导致同等分子被放大 16%，normalized 虚高
     if etf_flow is not None:
         etf_score = 2 if etf_flow == "流入" else (-2 if etf_flow == "流出" else 0)
-        etf_weight = 0.12
+        etf_display = etf_flow
     else:
         etf_score = 0
-        etf_weight = 0
-        etf_flow = "无数据"
-    scores.append({"layer": "情绪博弈", "name": "ETF资金流向", "value": etf_flow, "score": etf_score, "weight": etf_weight})
+        etf_display = "无数据"
+    scores.append({"layer": "情绪博弈", "name": "ETF资金流向", "value": etf_display, "score": etf_score, "weight": 0.12})
 
     # COT 非商业净多头情绪
     cot_net_pct = cot_data.get("net_long_pct", None)
