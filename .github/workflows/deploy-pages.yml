@@ -41,7 +41,9 @@ jobs:
         env:
           CI: false
         run: |
-          npm ci --include=dev
+          # npm ci 在 GitHub Runner 上会触发 npm 内部的 "Exit handler never called"；
+          # 改用 npm install 仍遵循 package.json，并规避该 npm CLI 缺陷。
+          npm install --include=dev --no-audit --no-fund
           test -x node_modules/.bin/react-scripts
           npm run build
       - name: Configure Pages
