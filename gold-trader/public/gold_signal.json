@@ -1,193 +1,189 @@
 {
-  "timestamp": "2026-06-29T13:30:29.240690",
+  "timestamp": "2026-07-29T07:22:51.506845",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4062.34,
-        "change_pct": 0.0,
-        "volume": null,
-        "source": "Polygon.io"
+        "price": 4044.7,
+        "change_pct": 0.21,
+        "volume": 10476,
+        "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 120.4,
-        "change_pct": 0.84,
-        "volume": null,
-        "source": "FRED"
+        "price": 101.32,
+        "change_pct": -0.06,
+        "volume": 0,
+        "source": "Yahoo Finance"
       },
       "GLD": {
         "name": "黄金ETF",
-        "price": 373.63,
-        "change_pct": 1.13,
-        "volume": 5603324,
-        "source": "Alpha Vantage",
-        "etf_flow": null
+        "price": 369.37,
+        "change_pct": -1.4,
+        "volume": 4803700,
+        "source": "Yahoo Finance",
+        "holdings_oz_est": 32153998.0,
+        "total_assets": 130053275648,
+        "etf_flow": "持平"
       },
       "SPY": {
         "name": "标普500",
-        "price": 728.99,
-        "change_pct": -0.72,
-        "volume": 71033969,
-        "source": "Alpha Vantage"
+        "price": 740.86,
+        "change_pct": 0.24,
+        "volume": 46934000,
+        "source": "Yahoo Finance"
       }
     },
     "macro": {
       "DFII10": {
-        "name": "10年TIPS实际利率",
-        "value": 2.19,
-        "date": "2026-06-25"
+        "error": "无有效观测值"
       },
       "DTWEXBGS": {
-        "name": "美元广义指数",
-        "value": 120.3958,
-        "date": "2026-06-18"
+        "error": "无有效观测值"
       },
       "T10YIE": {
-        "name": "10年盈亏平衡通胀率",
-        "value": 2.2,
-        "date": "2026-06-26"
+        "error": "无有效观测值"
       },
       "CPIAUCSL": {
-        "name": "CPI同比通胀率",
-        "value": 4.27,
-        "date": "2026-05-01",
-        "index": 333.979
+        "error": "无有效观测值"
       }
     },
     "technical": {
-      "price": 4062.34,
-      "ma20": 4191.56,
-      "ma50": 4420.08,
-      "ma200": 4584.35,
+      "price": 4044.1,
+      "ma20": 4069.24,
+      "ma50": 4219.3,
+      "ma200": 4479.22,
       "above_ma20": false,
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 37.1,
+      "rsi": 43.0,
       "rsi_divergence": false,
       "macd_cross": false,
-      "macd_above_signal": false,
-      "macd_value": -107.76,
-      "atr": 91.66,
-      "bb_upper": 4416.43,
-      "bb_lower": 3966.68,
-      "support": 3959.0,
-      "resistance": 4832.0,
-      "volume_surge": false
+      "macd_above_signal": true,
+      "macd_value": -43.98,
+      "atr": 60.94,
+      "bb_upper": 4169.67,
+      "bb_lower": 3968.81,
+      "support": 3962.0,
+      "resistance": 4765.0,
+      "volume_surge": true
     },
     "cot": {
       "source": "CFTC（官方）",
-      "report_date": "2026-06-23",
-      "net_long": 115395,
-      "long_positions": 131102,
-      "short_positions": 15707,
-      "open_interest": 352167,
-      "net_long_pct": 32.8,
+      "report_date": "2026-07-21",
+      "net_long": 124831,
+      "long_positions": 141487,
+      "short_positions": 16656,
+      "open_interest": 383368,
+      "net_long_pct": 32.6,
       "sentiment": "多头",
       "update_day": "每周五15:30 ET"
     },
     "fed_cut": {
       "prob": null,
-      "implied_rate": null,
+      "implied_rate": 3.7,
       "current_rate": null,
-      "source": "ZQ=F失败，降息概率不可用"
+      "source": "数据不可用"
     },
     "vix": {
-      "value": null,
-      "risk_level": "未知",
-      "source": "获取失败"
+      "value": 18.2,
+      "change": -0.5,
+      "risk_level": "中性",
+      "risk_desc": "市场情绪平稳",
+      "source": "CBOE VIX（yfinance）",
+      "date": "2026-07-28"
     }
   },
   "signal": {
-    "gold_price": 4062.34,
+    "gold_price": 4044.7,
     "scores": [
       {
         "layer": "宏观结构",
         "name": "实际利率TIPS",
-        "value": "2.19%",
-        "score": -2,
+        "value": "1.90%",
+        "score": -1,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "120.4 (广义指数)",
-        "score": -3,
+        "value": "101.3 (DXY)",
+        "score": 1,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
-        "name": "VIX风险（获取失败）",
-        "value": "无数据",
+        "name": "VIX风险（中性）",
+        "value": "VIX 18.2",
         "score": 0,
-        "weight": 0
+        "weight": 0.1
       },
       {
         "layer": "宏观节奏",
         "name": "降息预期（TIPS推算，精度较低）",
-        "value": "34%",
+        "value": "43%",
         "score": 0,
         "weight": 0.14
       },
       {
         "layer": "宏观节奏",
         "name": "CPI同比通胀率",
-        "value": "4.27%",
-        "score": -2,
+        "value": "数据异常",
+        "score": 0,
         "weight": 0.13
       },
       {
         "layer": "情绪博弈",
         "name": "ETF资金流向",
-        "value": "无数据",
+        "value": "持平",
         "score": 0,
         "weight": 0.12
       },
       {
         "layer": "情绪博弈",
-        "name": "COT多头情绪（2026-06-23）",
-        "value": "+32.8% 净多（多头）",
+        "name": "COT多头情绪（2026-07-21）",
+        "value": "+32.6% 净多（多头）",
         "score": 2,
         "weight": 0.12
       }
     ],
-    "normalized_score": -13,
-    "tech_score": 1,
-    "action": "观望空仓",
-    "fed_cut_prob_est": 34,
+    "normalized_score": 4,
+    "tech_score": 3,
+    "action": "建仓做多",
+    "fed_cut_prob_est": 43,
     "fed_cut_source": "TIPS推算",
-    "etf_flow": null,
+    "etf_flow": "持平",
     "etf_data_valid": true,
     "vix_risk_off": false,
-    "dxy_source": "FRED",
-    "tech_support": 3959.0,
-    "tech_resistance": 4832.0,
-    "atr": 91.66,
+    "dxy_source": "Yahoo Finance",
+    "tech_support": 3962.0,
+    "tech_resistance": 4765.0,
+    "atr": 60.94,
     "in_support": true,
     "in_deep_support": false,
     "breakout": false,
     "vix": {
-      "value": null,
-      "risk_level": "未知",
-      "date": "",
-      "source": "获取失败"
+      "value": 18.2,
+      "risk_level": "中性",
+      "date": "2026-07-28",
+      "source": "CBOE VIX（yfinance）"
     },
     "cot": {
-      "net_long": 115395,
-      "net_long_pct": 32.8,
+      "net_long": 124831,
+      "net_long_pct": 32.6,
       "sentiment": "多头",
-      "report_date": "2026-06-23",
+      "report_date": "2026-07-21",
       "source": "CFTC（官方）"
     },
     "tech_details": {
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 37.1,
+      "rsi": 43.0,
       "rsi_divergence": false,
       "macd_cross": false,
-      "support": 3959.0,
-      "resistance": 4832.0,
-      "atr": 91.66
+      "support": 3962.0,
+      "resistance": 4765.0,
+      "atr": 60.94
     }
   }
 }
