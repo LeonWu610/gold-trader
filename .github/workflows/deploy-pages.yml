@@ -32,8 +32,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          # Node 22 自带 npm 10.9+，避开 Node 20 附带 npm 10.8.2 的 ci 进程退出缺陷。
           node-version: 22
+          registry-url: https://registry.npmjs.org
           cache: npm
           cache-dependency-path: gold-trader/package-lock.json
       - name: Install dependencies and build static site
@@ -41,9 +41,7 @@ jobs:
         env:
           CI: false
         run: |
-          # npm ci 在 GitHub Runner 上会触发 npm 内部的 "Exit handler never called"；
-          # 改用 npm install 仍遵循 package.json，并规避该 npm CLI 缺陷。
-          npm install --include=dev --no-audit --no-fund
+          npm ci --include=dev --no-audit --no-fund
           test -x node_modules/.bin/react-scripts
           npm run build
       - name: Configure Pages
