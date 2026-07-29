@@ -32,7 +32,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22 自带 npm 10.9+，避开 Node 20 附带 npm 10.8.2 的 ci 进程退出缺陷。
+          node-version: 22
           cache: npm
           cache-dependency-path: gold-trader/package-lock.json
       - name: Install dependencies and build static site
