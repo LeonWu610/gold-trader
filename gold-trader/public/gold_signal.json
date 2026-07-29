@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-07-29T09:19:44.275760",
+  "timestamp": "2026-07-29T09:31:13.250658+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4095.6,
-        "change_pct": 1.47,
-        "volume": 27182,
+        "price": 4095.2,
+        "change_pct": 1.46,
+        "volume": 27862,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 101.32,
-        "change_pct": -0.06,
+        "price": 101.34,
+        "change_pct": -0.04,
         "volume": 0,
         "source": "Yahoo Finance"
       },
@@ -22,7 +22,7 @@
         "change_pct": -1.4,
         "volume": 4803700,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 31754389.0,
+        "holdings_oz_est": 31757491.0,
         "total_assets": 130053275648,
         "etf_flow": "持平"
       },
@@ -49,20 +49,20 @@
       }
     },
     "technical": {
-      "price": 4096.3,
-      "ma20": 4071.85,
-      "ma50": 4220.35,
-      "ma200": 4479.48,
+      "price": 4095.0,
+      "ma20": 4071.79,
+      "ma50": 4220.32,
+      "ma200": 4479.47,
       "above_ma20": true,
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 47.4,
+      "rsi": 47.3,
       "rsi_divergence": false,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": -39.81,
+      "macd_value": -39.92,
       "atr": 63.41,
-      "bb_upper": 4172.25,
+      "bb_upper": 4172.12,
       "bb_lower": 3971.45,
       "support": 3962.0,
       "resistance": 4765.0,
@@ -87,7 +87,7 @@
     },
     "vix": {
       "value": 18.2,
-      "change": -0.0,
+      "change": 0.0,
       "risk_level": "中性",
       "risk_desc": "市场情绪平稳",
       "source": "CBOE VIX（yfinance）",
@@ -95,7 +95,7 @@
     }
   },
   "signal": {
-    "gold_price": 4095.6,
+    "gold_price": 4095.2,
     "scores": [
       {
         "layer": "宏观结构",
@@ -178,7 +178,7 @@
     "tech_details": {
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 47.4,
+      "rsi": 47.3,
       "rsi_divergence": false,
       "macd_cross": false,
       "support": 3962.0,
