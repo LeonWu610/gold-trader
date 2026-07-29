@@ -33,10 +33,24 @@ from typing import Optional
 
 # ─── 配置 ────────────────────────────────────────────────────────────────────
 import os
-FRED_API_KEY         = os.environ.get("FRED_API_KEY",      "721dba314c828e61fa4d0bc748b32463")
-ALPHA_VANTAGE_KEY    = os.environ.get("ALPHA_VANTAGE_KEY", "6CF3LRAR9CS2XTKN")
-POLYGON_KEY          = os.environ.get("POLYGON_KEY",       "OgVZlxub_KCvbdzNPXOwkeQc1oxlvmSk")
-PORT = int(os.environ.get("PORT", 5001))   # Railway 会注入 $PORT
+
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
+ALPHA_VANTAGE_KEY = os.environ.get("ALPHA_VANTAGE_KEY", "")
+POLYGON_KEY = os.environ.get("POLYGON_KEY", "")
+PORT = int(os.environ.get("PORT", 5001))
+# 逗号分隔。生产环境请配置为 GitHub Pages 的完整站点地址；本地默认允许 CRA 开发服务器。
+ALLOWED_ORIGINS = {
+    origin.strip().rstrip("/")
+    for origin in os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+}
+
+
+def get_allowed_origin(request_origin: Optional[str]) -> Optional[str]:
+    """仅向白名单来源返回 CORS 响应头，避免开放 API 被任意网页调用。"""
+    if request_origin and request_origin.rstrip("/") in ALLOWED_ORIGINS:
+        return request_origin.rstrip("/")
+    return None
 
 # ─── Fallback: Polygon.io ────────────────────────────────────────────────────
 
@@ -1183,6 +1197,18 @@ def run_full_analysis() -> dict:
     return output
 
 
+def export_static_data(output_path: str) -> dict:
+    """生成供 GitHub Pages 使用的静态数据文件，并在失败时让 CI 任务明确失败。"""
+    data = run_full_analysis()
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as output_file:
+        json.dump(data, output_file, ensure_ascii=False, indent=2)
+    print(f"✅ 静态数据已写入 {output_path}")
+    return data
+
+
 # ─── 缓存（避免每次请求都重新抓取）────────────────────────────────────────────
 _cache = {"data": None, "ts": 0}
 _cache_lock = threading.Lock()   # 防止并发重复抓取
@@ -1250,7 +1276,10 @@ class GoldAPIHandler(BaseHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin",  "*")
+        origin = get_allowed_origin(self.headers.get("Origin"))
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -1284,9 +1313,15 @@ class GoldAPIHandler(BaseHTTPRequestHandler):
                 pass
 
     def do_OPTIONS(self):
-        # 处理浏览器 CORS 预检请求
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin",  "*")
+        # 处理浏览器 CORS 预检请求，仅响应受信任的前端来源。
+        origin = get_allowed_origin(self.headers.get("Origin"))
+        if not origin:
+            self.send_response(403)
+            self.end_headers()
+            return
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -1303,7 +1338,7 @@ if __name__ == "__main__":
     print("=" * 55)
     print(f"🚀 启动本地 API 服务于 http://localhost:{PORT}")
     print(f"📡 数据接口: http://localhost:{PORT}/api/gold")
-    print(f"🔑 FRED Key: {FRED_API_KEY[:8]}...")
+    print(f"🔑 FRED Key configured: {'yes' if FRED_API_KEY else 'no'}")
     print(f"⏱  缓存时间: {CACHE_TTL // 60} 分钟")
     print("=" * 55)
 

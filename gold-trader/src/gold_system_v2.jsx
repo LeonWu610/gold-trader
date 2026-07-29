@@ -440,9 +440,9 @@ const SourcesTab = () => (
       </div>
     ))}
     <div style={{ padding: "12px 16px", border: `0.5px solid ${COLORS.border}`, borderRadius: 8, fontSize: 11, color: COLORS.textDim, lineHeight: 1.8 }}>
-      推荐配置：填入 FRED_API_KEY（免费申请，5分钟）获取官方宏观数据。
-      金价数据来自 Yahoo Finance 同一接口，与网页显示一致（15分钟延迟）。
-      如需真实时报价，需使用 Twelve Data 或 Polygon.io（有免费层）。
+      数据由 GitHub Actions 定时抓取并生成，网页仅读取同域静态 JSON，不暴露任何 API 密钥。
+      金价主要来自 Yahoo Finance；FRED、CFTC、VIX 等数据在后台任务中汇总计算。
+      数据按工作日定时更新，页面显示的是最近一次成功生成的快照。
     </div>
   </div>
 );
@@ -465,7 +465,8 @@ export default function GoldSystemV2() {
       const result = await fetchAllData(setProgress);
       setRawData(result);
       setSources(result.sources || {});
-      setLastUpdated(new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      const generatedAt = result.generatedAt ? new Date(result.generatedAt) : new Date();
+      setLastUpdated(generatedAt.toLocaleString("zh-CN", { hour: "2-digit", minute: "2-digit", month: "2-digit", day: "2-digit" }));
     } catch (e) {
       setProgress(`错误: ${e.message}`);
     }
@@ -474,7 +475,7 @@ export default function GoldSystemV2() {
 
   useEffect(() => {
     loadData();
-    const timer = setInterval(loadData, 15 * 60 * 1000);
+    const timer = setInterval(loadData, 60 * 60 * 1000);
     return () => clearInterval(timer);
   }, [loadData]);
 
@@ -509,7 +510,7 @@ export default function GoldSystemV2() {
             </span>
             {lastUpdated && (
               <span style={{ fontSize: 11, color: COLORS.textDim }}>
-                更新于 {lastUpdated}（15分钟自动刷新）
+                数据生成于 {lastUpdated}（定时更新）
               </span>
             )}
           </div>
@@ -526,7 +527,7 @@ export default function GoldSystemV2() {
                 cursor: "pointer", fontFamily: "'Space Mono',monospace",
               }}
             >
-              {loading ? "获取中..." : "立即刷新"}
+              {loading ? "读取中..." : "重新读取"}
             </button>
           </div>
         </div>

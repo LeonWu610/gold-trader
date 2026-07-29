@@ -18,8 +18,8 @@ import { COLORS } from "./constants";
 export const BACKEND_BASE = process.env.REACT_APP_BACKEND_URL || "http://localhost:5001";
 export const LOCAL_API = `${BACKEND_BASE}/api/gold`;
 
-// FRED API Key（免费申请：https://fred.stlouisfed.org/docs/api/api_key.html）
-export const FRED_KEY = "721dba314c828e61fa4d0bc748b32463";
+// 浏览器端不保存任何第三方 API 密钥；敏感数据请求统一由后端处理。
+export const FRED_KEY = "";
 
 // ─── 数据源 1：Yahoo Finance 非官方 JSON API ──────────────────────────────────
 // 与 Yahoo Finance 网页同源，无需 API Key，延迟约 15 分钟。
@@ -106,15 +106,8 @@ export const fetchViaAnthropicSearch = async (query) => {
   return match ? JSON.parse(match[0]) : null;
 };
 
-// ─── 数据源 0：Python 本地/云端后端 ──────────────────────────────────────────
-export const fetchFromLocalBackend = async (onProgress) => {
-  onProgress("正在连接本地 Python 后端...");
-  console.log("[Local] 尝试连接:", LOCAL_API);
-  const resp = await fetch(LOCAL_API, { signal: AbortSignal.timeout(35000) });
-  if (!resp.ok) throw new Error(`本地后端响应 ${resp.status}`);
-  const raw = await resp.json();
-  console.log("[Local] ✅ 原始数据:", raw);
-
+// ─── 数据源 0：GitHub Pages 同域静态数据 ─────────────────────────────────────
+const mapBackendResponse = (raw) => {
   const pd = raw.data_sources?.price    || {};
   const fd = raw.data_sources?.macro    || {};
   const td = raw.data_sources?.technical || {};
@@ -187,6 +180,28 @@ export const fetchFromLocalBackend = async (onProgress) => {
   };
 };
 
+export const fetchStaticData = async (onProgress) => {
+  onProgress("正在读取最近一次定时生成的数据...");
+  const staticDataUrl = `${process.env.PUBLIC_URL || ""}/gold_signal.json?ts=${Date.now()}`;
+  const resp = await fetch(staticDataUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+  if (!resp.ok) throw new Error(`静态数据响应 ${resp.status}`);
+  const raw = await resp.json();
+  if (!raw?.data_sources || !raw?.signal) throw new Error("静态数据格式无效");
+  console.log("[Static] ✅ 使用 GitHub Actions 生成的数据:", raw.timestamp);
+  return { ...mapBackendResponse(raw), generatedAt: raw.timestamp };
+};
+
+// 仅用于本地开发环境或未来切回独立 API 时的兼容路径。
+export const fetchFromLocalBackend = async (onProgress) => {
+  onProgress("正在连接本地 Python 后端...");
+  console.log("[Local] 尝试连接:", LOCAL_API);
+  const resp = await fetch(LOCAL_API, { signal: AbortSignal.timeout(35000) });
+  if (!resp.ok) throw new Error(`本地后端响应 ${resp.status}`);
+  const raw = await resp.json();
+  console.log("[Local] ✅ 原始数据:", raw);
+  return mapBackendResponse(raw);
+};
+
 // ─── 技术指标计算（前端降级用）────────────────────────────────────────────────
 // 仅在本地后端不可用时调用，直接从 Yahoo Finance 历史数据计算。
 const computeTechFromYahoo = async () => {
@@ -239,17 +254,27 @@ const computeTechFromYahoo = async () => {
   };
 };
 
-// ─── 主数据抓取器（优先级：本地后端 → FRED直连 → 降级）──────────────────────
+// ─── 主数据抓取器（优先级：静态数据 → 本地后端 → 直连降级）──────────────────
 export const fetchAllData = async (onProgress) => {
-  // 优先级 1：本地 Python 后端
+  // 生产环境由 GitHub Actions 定时生成的同域 JSON 提供数据。
   try {
-    const data = await fetchFromLocalBackend(onProgress);
-    console.log("[fetchAllData] ✅ 使用本地 Python 后端数据");
-    return data;
+    return await fetchStaticData(onProgress);
   } catch (e) {
-    console.warn("[fetchAllData] 本地后端不可用，降级到直连模式:", e.message);
-    onProgress("本地后端未启动，切换到直连模式...");
+    console.warn("[fetchAllData] 静态数据不可用:", e.message);
   }
+
+  // 本地开发时仍可启动 Python 服务获得即时数据。
+  if (process.env.NODE_ENV === "development") {
+    try {
+      const data = await fetchFromLocalBackend(onProgress);
+      console.log("[fetchAllData] ✅ 使用本地 Python 后端数据");
+      return data;
+    } catch (e) {
+      console.warn("[fetchAllData] 本地后端不可用，降级到直连模式:", e.message);
+    }
+  }
+
+  onProgress("静态数据暂不可用，切换到浏览器直连模式...");
 
   const result = { price: null, macro: null, tech: null, sources: {} };
 
