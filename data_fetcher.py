@@ -1175,7 +1175,8 @@ def run_full_analysis() -> dict:
     signal = compute_signal_score(price_data, fred_data, tech_data, cot_data, fed_cut_data, vix_data)
 
     output = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        # GitHub Actions 的运行器使用 UTC；携带时区信息，浏览器才能正确换算为用户本地时间。
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "data_sources": {
             "price":    price_data,
             "macro":    fred_data,
