@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-07-29T07:22:51.506845",
+  "timestamp": "2026-07-29T07:24:12.734400",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4044.7,
-        "change_pct": 0.21,
-        "volume": 10476,
+        "price": 4043.3,
+        "change_pct": 0.17,
+        "volume": 10594,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 101.32,
-        "change_pct": -0.06,
+        "price": 101.33,
+        "change_pct": -0.04,
         "volume": 0,
         "source": "Yahoo Finance"
       },
@@ -22,7 +22,7 @@
         "change_pct": -1.4,
         "volume": 4803700,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 32153998.0,
+        "holdings_oz_est": 32165131.0,
         "total_assets": 130053275648,
         "etf_flow": "持平"
       },
@@ -49,9 +49,9 @@
       }
     },
     "technical": {
-      "price": 4044.1,
-      "ma20": 4069.24,
-      "ma50": 4219.3,
+      "price": 4044.4,
+      "ma20": 4069.26,
+      "ma50": 4219.31,
       "ma200": 4479.22,
       "above_ma20": false,
       "above_ma50": false,
@@ -60,10 +60,10 @@
       "rsi_divergence": false,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": -43.98,
-      "atr": 60.94,
+      "macd_value": -43.95,
+      "atr": 60.96,
       "bb_upper": 4169.67,
-      "bb_lower": 3968.81,
+      "bb_lower": 3968.84,
       "support": 3962.0,
       "resistance": 4765.0,
       "volume_surge": true
@@ -95,7 +95,7 @@
     }
   },
   "signal": {
-    "gold_price": 4044.7,
+    "gold_price": 4043.3,
     "scores": [
       {
         "layer": "宏观结构",
@@ -158,7 +158,7 @@
     "dxy_source": "Yahoo Finance",
     "tech_support": 3962.0,
     "tech_resistance": 4765.0,
-    "atr": 60.94,
+    "atr": 60.96,
     "in_support": true,
     "in_deep_support": false,
     "breakout": false,
@@ -183,7 +183,7 @@
       "macd_cross": false,
       "support": 3962.0,
       "resistance": 4765.0,
-      "atr": 60.94
+      "atr": 60.96
     }
   }
 }
