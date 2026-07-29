@@ -35,14 +35,14 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: gold-trader/package-lock.json
-      - name: Install dependencies
-        working-directory: gold-trader
-        run: npm ci
-      - name: Build static site
+      - name: Install dependencies and build static site
         working-directory: gold-trader
         env:
           CI: false
-        run: npm run build
+        run: |
+          npm ci --include=dev
+          test -x node_modules/.bin/react-scripts
+          npm run build
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
