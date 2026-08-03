@@ -1,36 +1,36 @@
 {
-  "timestamp": "2026-08-03T10:52:17.343256+00:00",
+  "timestamp": "2026-08-03T15:51:59.116380+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4107.2,
-        "change_pct": 1.43,
-        "volume": 37143,
+        "price": 4092.8,
+        "change_pct": 1.08,
+        "volume": 73108,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 99.84,
-        "change_pct": 0.04,
+        "price": 99.96,
+        "change_pct": 0.17,
         "volume": 0,
         "source": "Yahoo Finance"
       },
       "GLD": {
         "name": "黄金ETF",
-        "price": 371.54,
-        "change_pct": -1.49,
-        "volume": 6641400,
+        "price": 370.52,
+        "change_pct": -0.28,
+        "volume": 2894566,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 31664705.0,
+        "holdings_oz_est": 31776113.0,
         "total_assets": 130053275648,
         "etf_flow": "持平"
       },
       "SPY": {
         "name": "标普500",
-        "price": 747.03,
-        "change_pct": 0.72,
-        "volume": 62339900,
+        "price": 756.05,
+        "change_pct": 1.21,
+        "volume": 23171156,
         "source": "Yahoo Finance"
       }
     },
@@ -49,21 +49,21 @@
       }
     },
     "technical": {
-      "price": 4107.0,
-      "ma20": 4064.78,
-      "ma50": 4192.44,
-      "ma200": 4479.34,
+      "price": 4092.3,
+      "ma20": 4064.04,
+      "ma50": 4192.14,
+      "ma200": 4479.26,
       "above_ma20": true,
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 53.9,
+      "rsi": 52.7,
       "rsi_divergence": true,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": -30.34,
+      "macd_value": -31.52,
       "atr": 59.95,
-      "bb_upper": 4158.36,
-      "bb_lower": 3971.19,
+      "bb_upper": 4156.45,
+      "bb_lower": 3971.63,
       "support": 3962.0,
       "resistance": 4765.0,
       "volume_surge": true
@@ -86,8 +86,8 @@
       "source": "数据不可用"
     },
     "vix": {
-      "value": 16.0,
-      "change": -0.0,
+      "value": 15.6,
+      "change": -0.4,
       "risk_level": "中性",
       "risk_desc": "市场情绪平稳",
       "source": "CBOE VIX（yfinance）",
@@ -95,7 +95,7 @@
     }
   },
   "signal": {
-    "gold_price": 4107.2,
+    "gold_price": 4092.8,
     "scores": [
       {
         "layer": "宏观结构",
@@ -107,14 +107,14 @@
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "99.8 (DXY)",
+        "value": "100.0 (DXY)",
         "score": 3,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
         "name": "VIX风险（中性）",
-        "value": "VIX 16.0",
+        "value": "VIX 15.6",
         "score": 0,
         "weight": 0.1
       },
@@ -163,7 +163,7 @@
     "in_deep_support": false,
     "breakout": false,
     "vix": {
-      "value": 16.0,
+      "value": 15.6,
       "risk_level": "中性",
       "date": "2026-08-03",
       "source": "CBOE VIX（yfinance）"
@@ -178,7 +178,7 @@
     "tech_details": {
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 53.9,
+      "rsi": 52.7,
       "rsi_divergence": true,
       "macd_cross": false,
       "support": 3962.0,
