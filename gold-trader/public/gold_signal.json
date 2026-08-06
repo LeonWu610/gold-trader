@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-08-06T04:31:18.543052+00:00",
+  "timestamp": "2026-08-06T09:51:40.036187+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4320.2,
-        "change_pct": 1.75,
-        "volume": 40763,
+        "price": 4320.7,
+        "change_pct": 1.76,
+        "volume": 53840,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 99.72,
-        "change_pct": 0.03,
+        "price": 99.74,
+        "change_pct": 0.05,
         "volume": 0,
         "source": "Yahoo Finance"
       },
@@ -22,7 +22,7 @@
         "change_pct": 4.14,
         "volume": 14696000,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 30103531.0,
+        "holdings_oz_est": 30100048.0,
         "total_assets": 130053275648,
         "etf_flow": "流入"
       },
@@ -49,8 +49,8 @@
       }
     },
     "technical": {
-      "price": 4320.3,
-      "ma20": 4076.85,
+      "price": 4320.7,
+      "ma20": 4076.87,
       "ma50": 4172.98,
       "ma200": 4479.04,
       "above_ma20": true,
@@ -60,13 +60,13 @@
       "rsi_divergence": true,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": 5.46,
+      "macd_value": 5.49,
       "atr": 69.37,
-      "bb_upper": 4239.72,
-      "bb_lower": 3913.97,
+      "bb_upper": 4239.87,
+      "bb_lower": 3913.86,
       "support": 3962.0,
       "resistance": 4765.0,
-      "volume_surge": false
+      "volume_surge": true
     },
     "cot": {
       "source": "CFTC（官方）",
@@ -86,16 +86,16 @@
       "source": "数据不可用"
     },
     "vix": {
-      "value": 15.8,
-      "change": -0.7,
+      "value": 15.9,
+      "change": 0.0,
       "risk_level": "中性",
       "risk_desc": "市场情绪平稳",
       "source": "CBOE VIX（yfinance）",
-      "date": "2026-08-05"
+      "date": "2026-08-06"
     }
   },
   "signal": {
-    "gold_price": 4320.2,
+    "gold_price": 4320.7,
     "scores": [
       {
         "layer": "宏观结构",
@@ -114,7 +114,7 @@
       {
         "layer": "宏观结构",
         "name": "VIX风险（中性）",
-        "value": "VIX 15.8",
+        "value": "VIX 15.9",
         "score": 0,
         "weight": 0.1
       },
@@ -148,7 +148,7 @@
       }
     ],
     "normalized_score": 13,
-    "tech_score": 3,
+    "tech_score": 4,
     "action": "持仓观望",
     "fed_cut_prob_est": 43,
     "fed_cut_source": "TIPS推算",
@@ -163,9 +163,9 @@
     "in_deep_support": false,
     "breakout": false,
     "vix": {
-      "value": 15.8,
+      "value": 15.9,
       "risk_level": "中性",
-      "date": "2026-08-05",
+      "date": "2026-08-06",
       "source": "CBOE VIX（yfinance）"
     },
     "cot": {
