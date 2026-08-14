@@ -1,36 +1,36 @@
 {
-  "timestamp": "2026-08-14T14:20:31.448066+00:00",
+  "timestamp": "2026-08-14T19:56:23.699668+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4446.5,
-        "change_pct": 1.9,
-        "volume": 87761,
+        "price": 4431.9,
+        "change_pct": 1.57,
+        "volume": 121523,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 99.53,
-        "change_pct": -0.43,
+        "price": 99.66,
+        "change_pct": -0.3,
         "volume": 0,
         "source": "Yahoo Finance"
       },
       "GLD": {
         "name": "黄金ETF",
-        "price": 402.35,
-        "change_pct": 0.85,
-        "volume": 2493571,
+        "price": 401.43,
+        "change_pct": 0.62,
+        "volume": 5664638,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 29309042.0,
+        "holdings_oz_est": 29405594.0,
         "total_assets": 130322653184,
         "etf_flow": "持平"
       },
       "SPY": {
         "name": "标普500",
-        "price": 777.82,
-        "change_pct": -0.01,
-        "volume": 4171956,
+        "price": 776.08,
+        "change_pct": -0.23,
+        "volume": 22916255,
         "source": "Yahoo Finance"
       }
     },
@@ -49,45 +49,45 @@
       }
     },
     "technical": {
-      "price": 4446.0,
-      "ma20": 4177.91,
-      "ma50": 4159.32,
-      "ma200": 4486.6,
+      "price": 4431.7,
+      "ma20": 4177.19,
+      "ma50": 4159.04,
+      "ma200": 4486.53,
       "above_ma20": true,
       "above_ma50": true,
       "above_ma200": false,
-      "rsi": 77.2,
+      "rsi": 76.7,
       "rsi_divergence": true,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": 73.85,
+      "macd_value": 72.71,
       "atr": 75.64,
-      "bb_upper": 4483.01,
-      "bb_lower": 3872.8,
+      "bb_upper": 4479.71,
+      "bb_lower": 3874.67,
       "support": 3962.0,
       "resistance": 4592.0,
       "volume_surge": true
     },
     "cot": {
       "source": "CFTC（官方）",
-      "report_date": "2026-08-04",
-      "net_long": 130766,
-      "long_positions": 139809,
-      "short_positions": 9043,
-      "open_interest": 371551,
-      "net_long_pct": 35.2,
+      "report_date": "2026-08-11",
+      "net_long": 137662,
+      "long_positions": 148634,
+      "short_positions": 10972,
+      "open_interest": 400309,
+      "net_long_pct": 34.4,
       "sentiment": "多头",
       "update_day": "每周五15:30 ET"
     },
     "fed_cut": {
       "prob": null,
-      "implied_rate": 3.71,
+      "implied_rate": 3.715,
       "current_rate": null,
       "source": "数据不可用"
     },
     "vix": {
-      "value": 14.6,
-      "change": -0.1,
+      "value": 14.3,
+      "change": -0.4,
       "risk_level": "低",
       "risk_desc": "风险偏好良好",
       "source": "CBOE VIX（yfinance）",
@@ -95,7 +95,7 @@
     }
   },
   "signal": {
-    "gold_price": 4446.5,
+    "gold_price": 4431.9,
     "scores": [
       {
         "layer": "宏观结构",
@@ -107,14 +107,14 @@
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "99.5 (DXY)",
+        "value": "99.7 (DXY)",
         "score": 3,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
         "name": "VIX风险（低）",
-        "value": "VIX 14.6",
+        "value": "VIX 14.3",
         "score": -1,
         "weight": 0.1
       },
@@ -141,8 +141,8 @@
       },
       {
         "layer": "情绪博弈",
-        "name": "COT多头情绪（2026-08-04）",
-        "value": "+35.2% 净多（多头）",
+        "name": "COT多头情绪（2026-08-11）",
+        "value": "+34.4% 净多（多头）",
         "score": 2,
         "weight": 0.12
       }
@@ -163,22 +163,22 @@
     "in_deep_support": false,
     "breakout": false,
     "vix": {
-      "value": 14.6,
+      "value": 14.3,
       "risk_level": "低",
       "date": "2026-08-14",
       "source": "CBOE VIX（yfinance）"
     },
     "cot": {
-      "net_long": 130766,
-      "net_long_pct": 35.2,
+      "net_long": 137662,
+      "net_long_pct": 34.4,
       "sentiment": "多头",
-      "report_date": "2026-08-04",
+      "report_date": "2026-08-11",
       "source": "CFTC（官方）"
     },
     "tech_details": {
       "above_ma50": true,
       "above_ma200": false,
-      "rsi": 77.2,
+      "rsi": 76.7,
       "rsi_divergence": true,
       "macd_cross": false,
       "support": 3962.0,
