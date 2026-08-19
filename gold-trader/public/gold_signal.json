@@ -1,36 +1,36 @@
 {
-  "timestamp": "2026-08-19T07:54:29.957209+00:00",
+  "timestamp": "2026-08-19T13:58:11.025220+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4407.4,
-        "change_pct": 0.95,
-        "volume": 44466,
+        "price": 4516.6,
+        "change_pct": 3.45,
+        "volume": 132288,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 99.48,
-        "change_pct": -0.17,
+        "price": 98.96,
+        "change_pct": -0.7,
         "volume": 0,
         "source": "Yahoo Finance"
       },
       "GLD": {
         "name": "黄金ETF",
-        "price": 398.55,
-        "change_pct": -1.71,
-        "volume": 10618200,
+        "price": 408.85,
+        "change_pct": 2.58,
+        "volume": 3787244,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 29569055.0,
+        "holdings_oz_est": 28854150.0,
         "total_assets": 130322653184,
-        "etf_flow": "流出"
+        "etf_flow": "持平"
       },
       "SPY": {
         "name": "标普500",
-        "price": 767.45,
-        "change_pct": -0.68,
-        "volume": 43840200,
+        "price": 770.02,
+        "change_pct": 0.33,
+        "volume": 5417940,
         "source": "Yahoo Finance"
       }
     },
@@ -49,24 +49,24 @@
       }
     },
     "technical": {
-      "price": 4406.7,
-      "ma20": 4222.73,
-      "ma50": 4158.85,
-      "ma200": 4492.47,
+      "price": 4515.7,
+      "ma20": 4228.18,
+      "ma50": 4161.03,
+      "ma200": 4493.01,
       "above_ma20": true,
       "above_ma50": true,
-      "above_ma200": false,
-      "rsi": 73.9,
+      "above_ma200": true,
+      "rsi": 77.7,
       "rsi_divergence": true,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": 76.28,
-      "atr": 78.26,
-      "bb_upper": 4539.27,
-      "bb_lower": 3906.2,
+      "macd_value": 84.98,
+      "atr": 85.89,
+      "bb_upper": 4561.38,
+      "bb_lower": 3894.99,
       "support": 3962.0,
       "resistance": 4592.0,
-      "volume_surge": false
+      "volume_surge": true
     },
     "cot": {
       "source": "CFTC（官方）",
@@ -81,13 +81,13 @@
     },
     "fed_cut": {
       "prob": null,
-      "implied_rate": 3.715,
+      "implied_rate": 3.775,
       "current_rate": null,
       "source": "数据不可用"
     },
     "vix": {
-      "value": 15.8,
-      "change": -0.0,
+      "value": 15.4,
+      "change": -0.5,
       "risk_level": "中性",
       "risk_desc": "市场情绪平稳",
       "source": "CBOE VIX（yfinance）",
@@ -95,7 +95,7 @@
     }
   },
   "signal": {
-    "gold_price": 4407.4,
+    "gold_price": 4516.6,
     "scores": [
       {
         "layer": "宏观结构",
@@ -107,14 +107,14 @@
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "99.5 (DXY)",
+        "value": "99.0 (DXY)",
         "score": 3,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
         "name": "VIX风险（中性）",
-        "value": "VIX 15.8",
+        "value": "VIX 15.4",
         "score": 0,
         "weight": 0.1
       },
@@ -135,8 +135,8 @@
       {
         "layer": "情绪博弈",
         "name": "ETF资金流向",
-        "value": "流出",
-        "score": -2,
+        "value": "持平",
+        "score": 0,
         "weight": 0.12
       },
       {
@@ -147,23 +147,23 @@
         "weight": 0.12
       }
     ],
-    "normalized_score": 4,
-    "tech_score": 3,
-    "action": "持仓观望",
+    "normalized_score": 9,
+    "tech_score": 5,
+    "action": "追多突破",
     "fed_cut_prob_est": 43,
     "fed_cut_source": "TIPS推算",
-    "etf_flow": "流出",
+    "etf_flow": "持平",
     "etf_data_valid": true,
     "vix_risk_off": false,
     "dxy_source": "Yahoo Finance",
     "tech_support": 3962.0,
     "tech_resistance": 4592.0,
-    "atr": 78.26,
+    "atr": 85.89,
     "in_support": false,
     "in_deep_support": false,
-    "breakout": false,
+    "breakout": true,
     "vix": {
-      "value": 15.8,
+      "value": 15.4,
       "risk_level": "中性",
       "date": "2026-08-19",
       "source": "CBOE VIX（yfinance）"
@@ -177,13 +177,13 @@
     },
     "tech_details": {
       "above_ma50": true,
-      "above_ma200": false,
-      "rsi": 73.9,
+      "above_ma200": true,
+      "rsi": 77.7,
       "rsi_divergence": true,
       "macd_cross": false,
       "support": 3962.0,
       "resistance": 4592.0,
-      "atr": 78.26
+      "atr": 85.89
     }
   }
 }
