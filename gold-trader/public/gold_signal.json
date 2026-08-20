@@ -1,36 +1,36 @@
 {
-  "timestamp": "2026-08-20T07:57:14.456768+00:00",
+  "timestamp": "2026-08-20T13:59:33.925697+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4548.9,
-        "change_pct": 1.33,
-        "volume": 42420,
+        "price": 4537.6,
+        "change_pct": 1.07,
+        "volume": 99310,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 98.75,
-        "change_pct": -0.09,
+        "price": 98.82,
+        "change_pct": -0.01,
         "volume": 0,
         "source": "Yahoo Finance"
       },
       "GLD": {
         "name": "黄金ETF",
-        "price": 413.84,
-        "change_pct": 3.84,
-        "volume": 16946500,
+        "price": 410.8,
+        "change_pct": -0.73,
+        "volume": 2066278,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 28649268.0,
+        "holdings_oz_est": 28720613.0,
         "total_assets": 130322653184,
-        "etf_flow": "流入"
+        "etf_flow": "持平"
       },
       "SPY": {
         "name": "标普500",
-        "price": 769.06,
-        "change_pct": 0.21,
-        "volume": 40242400,
+        "price": 766.54,
+        "change_pct": -0.33,
+        "volume": 4655971,
         "source": "Yahoo Finance"
       }
     },
@@ -49,24 +49,24 @@
       }
     },
     "technical": {
-      "price": 4549.7,
-      "ma20": 4252.02,
-      "ma50": 4166.29,
-      "ma200": 4495.72,
+      "price": 4535.8,
+      "ma20": 4251.33,
+      "ma50": 4166.02,
+      "ma200": 4495.65,
       "above_ma20": true,
       "above_ma50": true,
       "above_ma200": true,
-      "rsi": 84.1,
+      "rsi": 83.8,
       "rsi_divergence": true,
       "macd_cross": false,
       "macd_above_signal": true,
-      "macd_value": 93.58,
+      "macd_value": 92.47,
       "atr": 89.66,
-      "bb_upper": 4599.02,
-      "bb_lower": 3905.03,
+      "bb_upper": 4595.86,
+      "bb_lower": 3906.8,
       "support": 3962.0,
       "resistance": 4592.0,
-      "volume_surge": false
+      "volume_surge": true
     },
     "cot": {
       "source": "CFTC（官方）",
@@ -81,21 +81,21 @@
     },
     "fed_cut": {
       "prob": null,
-      "implied_rate": 3.72,
+      "implied_rate": 3.725,
       "current_rate": null,
       "source": "数据不可用"
     },
     "vix": {
-      "value": 15.0,
-      "change": 0.1,
-      "risk_level": "低",
-      "risk_desc": "风险偏好良好",
+      "value": 15.5,
+      "change": 0.6,
+      "risk_level": "中性",
+      "risk_desc": "市场情绪平稳",
       "source": "CBOE VIX（yfinance）",
       "date": "2026-08-20"
     }
   },
   "signal": {
-    "gold_price": 4548.9,
+    "gold_price": 4537.6,
     "scores": [
       {
         "layer": "宏观结构",
@@ -113,9 +113,9 @@
       },
       {
         "layer": "宏观结构",
-        "name": "VIX风险（低）",
-        "value": "VIX 15.0",
-        "score": -1,
+        "name": "VIX风险（中性）",
+        "value": "VIX 15.5",
+        "score": 0,
         "weight": 0.1
       },
       {
@@ -135,8 +135,8 @@
       {
         "layer": "情绪博弈",
         "name": "ETF资金流向",
-        "value": "流入",
-        "score": 2,
+        "value": "持平",
+        "score": 0,
         "weight": 0.12
       },
       {
@@ -147,12 +147,12 @@
         "weight": 0.12
       }
     ],
-    "normalized_score": 11,
-    "tech_score": 4,
+    "normalized_score": 9,
+    "tech_score": 5,
     "action": "追多突破",
     "fed_cut_prob_est": 43,
     "fed_cut_source": "TIPS推算",
-    "etf_flow": "流入",
+    "etf_flow": "持平",
     "etf_data_valid": true,
     "vix_risk_off": false,
     "dxy_source": "Yahoo Finance",
@@ -163,8 +163,8 @@
     "in_deep_support": false,
     "breakout": true,
     "vix": {
-      "value": 15.0,
-      "risk_level": "低",
+      "value": 15.5,
+      "risk_level": "中性",
       "date": "2026-08-20",
       "source": "CBOE VIX（yfinance）"
     },
@@ -178,7 +178,7 @@
     "tech_details": {
       "above_ma50": true,
       "above_ma200": true,
-      "rsi": 84.1,
+      "rsi": 83.8,
       "rsi_divergence": true,
       "macd_cross": false,
       "support": 3962.0,
