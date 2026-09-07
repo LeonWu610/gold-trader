@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-09-07T06:06:50.237818+00:00",
+  "timestamp": "2026-09-07T13:31:13.256520+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
         "price": 4476.6,
         "change_pct": 1.06,
-        "volume": 23702,
+        "volume": 57306,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 99.14,
-        "change_pct": -0.02,
+        "price": 98.92,
+        "change_pct": -0.24,
         "volume": 0,
         "source": "Yahoo Finance"
       },
@@ -61,7 +61,7 @@
       "macd_cross": false,
       "macd_above_signal": false,
       "macd_value": 53.53,
-      "atr": 82.79,
+      "atr": 83.05,
       "bb_upper": 4674.48,
       "bb_lower": 4271.31,
       "support": 3962.0,
@@ -86,12 +86,12 @@
       "source": "数据不可用"
     },
     "vix": {
-      "value": 14.5,
-      "change": 0.2,
-      "risk_level": "低",
-      "risk_desc": "风险偏好良好",
+      "value": 15.1,
+      "change": 0.6,
+      "risk_level": "中性",
+      "risk_desc": "市场情绪平稳",
       "source": "CBOE VIX（yfinance）",
-      "date": "2026-09-04"
+      "date": "2026-09-07"
     }
   },
   "signal": {
@@ -107,15 +107,15 @@
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "99.1 (DXY)",
+        "value": "98.9 (DXY)",
         "score": 3,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
-        "name": "VIX风险（低）",
-        "value": "VIX 14.5",
-        "score": -1,
+        "name": "VIX风险（中性）",
+        "value": "VIX 15.1",
+        "score": 0,
         "weight": 0.1
       },
       {
@@ -147,7 +147,7 @@
         "weight": 0.12
       }
     ],
-    "normalized_score": 7,
+    "normalized_score": 9,
     "tech_score": 4,
     "action": "持仓观望",
     "fed_cut_prob_est": 43,
@@ -158,14 +158,14 @@
     "dxy_source": "Yahoo Finance",
     "tech_support": 3962.0,
     "tech_resistance": 4671.0,
-    "atr": 82.79,
+    "atr": 83.05,
     "in_support": false,
     "in_deep_support": false,
     "breakout": false,
     "vix": {
-      "value": 14.5,
-      "risk_level": "低",
-      "date": "2026-09-04",
+      "value": 15.1,
+      "risk_level": "中性",
+      "date": "2026-09-07",
       "source": "CBOE VIX（yfinance）"
     },
     "cot": {
@@ -183,7 +183,7 @@
       "macd_cross": false,
       "support": 3962.0,
       "resistance": 4671.0,
-      "atr": 82.79
+      "atr": 83.05
     }
   }
 }
