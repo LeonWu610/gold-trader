@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-09-16T22:11:18.805409+00:00",
+  "timestamp": "2026-09-17T06:08:56.151215+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 4300.3,
-        "change_pct": -0.75,
-        "volume": 72,
+        "price": 4341.6,
+        "change_pct": -1.05,
+        "volume": 43682,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 100.32,
-        "change_pct": 0.67,
+        "price": 100.24,
+        "change_pct": -0.07,
         "volume": 0,
         "source": "Yahoo Finance"
       },
@@ -20,9 +20,9 @@
         "name": "黄金ETF",
         "price": 391.74,
         "change_pct": -0.61,
-        "volume": 15553366,
+        "volume": 15607000,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 35546635.0,
+        "holdings_oz_est": 35208494.0,
         "total_assets": 152861196288,
         "etf_flow": "流出"
       },
@@ -30,7 +30,7 @@
         "name": "标普500",
         "price": 754.05,
         "change_pct": -0.44,
-        "volume": 58775633,
+        "volume": 58959700,
         "source": "Yahoo Finance"
       }
     },
@@ -49,21 +49,21 @@
       }
     },
     "technical": {
-      "price": 4299.0,
-      "ma20": 4502.27,
-      "ma50": 4311.45,
-      "ma200": 4551.43,
+      "price": 4341.8,
+      "ma20": 4496.52,
+      "ma50": 4318.41,
+      "ma200": 4552.31,
       "above_ma20": false,
-      "above_ma50": false,
+      "above_ma50": true,
       "above_ma200": false,
-      "rsi": 25.0,
+      "rsi": 28.9,
       "rsi_divergence": false,
       "macd_cross": false,
       "macd_above_signal": false,
-      "macd_value": -6.88,
-      "atr": 109.66,
-      "bb_upper": 4753.94,
-      "bb_lower": 4250.6,
+      "macd_value": -6.45,
+      "atr": 117.87,
+      "bb_upper": 4746.13,
+      "bb_lower": 4246.91,
       "support": 3955.0,
       "resistance": 4755.0,
       "volume_surge": false
@@ -81,7 +81,7 @@
     },
     "fed_cut": {
       "prob": null,
-      "implied_rate": 3.895,
+      "implied_rate": 3.89,
       "current_rate": null,
       "source": "数据不可用"
     },
@@ -95,7 +95,7 @@
     }
   },
   "signal": {
-    "gold_price": 4300.3,
+    "gold_price": 4341.6,
     "scores": [
       {
         "layer": "宏观结构",
@@ -107,7 +107,7 @@
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "100.3 (DXY)",
+        "value": "100.2 (DXY)",
         "score": 1,
         "weight": 0.13
       },
@@ -148,7 +148,7 @@
       }
     ],
     "normalized_score": 0,
-    "tech_score": 0,
+    "tech_score": 1,
     "action": "持仓观望",
     "fed_cut_prob_est": 43,
     "fed_cut_source": "TIPS推算",
@@ -158,7 +158,7 @@
     "dxy_source": "Yahoo Finance",
     "tech_support": 3955.0,
     "tech_resistance": 4755.0,
-    "atr": 109.66,
+    "atr": 117.87,
     "in_support": false,
     "in_deep_support": false,
     "breakout": false,
@@ -176,14 +176,14 @@
       "source": "CFTC（官方）"
     },
     "tech_details": {
-      "above_ma50": false,
+      "above_ma50": true,
       "above_ma200": false,
-      "rsi": 25.0,
+      "rsi": 28.9,
       "rsi_divergence": false,
       "macd_cross": false,
       "support": 3955.0,
       "resistance": 4755.0,
-      "atr": 109.66
+      "atr": 117.87
     }
   }
 }
