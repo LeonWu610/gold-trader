@@ -1,18 +1,18 @@
 {
-  "timestamp": "2026-11-24T23:01:18.192242+00:00",
+  "timestamp": "2026-11-25T09:51:44.037365+00:00",
   "data_sources": {
     "price": {
       "GC=F": {
         "name": "黄金期货",
-        "price": 3555.1,
-        "change_pct": -2.64,
-        "volume": 217681,
+        "price": 3552.7,
+        "change_pct": -0.26,
+        "volume": 45723,
         "source": "Yahoo Finance"
       },
       "DX-Y.NYB": {
         "name": "美元指数DXY",
-        "price": 103.83,
-        "change_pct": -0.47,
+        "price": 104.05,
+        "change_pct": 0.23,
         "volume": 0,
         "source": "Yahoo Finance"
       },
@@ -20,9 +20,9 @@
         "name": "黄金ETF",
         "price": 325.45,
         "change_pct": -2.27,
-        "volume": 9025518,
+        "volume": 9428500,
         "source": "Yahoo Finance",
-        "holdings_oz_est": 36851184.0,
+        "holdings_oz_est": 36876078.0,
         "total_assets": 131009642496,
         "etf_flow": "流出"
       },
@@ -30,7 +30,7 @@
         "name": "标普500",
         "price": 718.78,
         "change_pct": -0.49,
-        "volume": 63350573,
+        "volume": 64228000,
         "source": "Yahoo Finance"
       }
     },
@@ -49,24 +49,24 @@
       }
     },
     "technical": {
-      "price": 3555.1,
-      "ma20": 3896.83,
-      "ma50": 4081.3,
-      "ma200": 4430.42,
+      "price": 3552.9,
+      "ma20": 3872.23,
+      "ma50": 4064.74,
+      "ma200": 4423.06,
       "above_ma20": false,
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 23.4,
+      "rsi": 20.1,
       "rsi_divergence": false,
       "macd_cross": false,
       "macd_above_signal": false,
-      "macd_value": -137.05,
-      "atr": 113.25,
-      "bb_upper": 4260.8,
-      "bb_lower": 3532.86,
+      "macd_value": -143.52,
+      "atr": 111.39,
+      "bb_upper": 4258.01,
+      "bb_lower": 3486.46,
       "support": 3503.0,
       "resistance": 4558.0,
-      "volume_surge": true
+      "volume_surge": false
     },
     "cot": {
       "source": "CFTC（官方）",
@@ -81,21 +81,21 @@
     },
     "fed_cut": {
       "prob": null,
-      "implied_rate": 4.3,
+      "implied_rate": 4.145,
       "current_rate": null,
       "source": "数据不可用"
     },
     "vix": {
-      "value": 26.4,
-      "change": -0.3,
+      "value": 29.1,
+      "change": 2.7,
       "risk_level": "高",
       "risk_desc": "市场恐慌，地缘风险上升",
       "source": "CBOE VIX（yfinance）",
-      "date": "2026-11-24"
+      "date": "2026-11-25"
     }
   },
   "signal": {
-    "gold_price": 3555.1,
+    "gold_price": 3552.7,
     "scores": [
       {
         "layer": "宏观结构",
@@ -107,15 +107,15 @@
       {
         "layer": "宏观结构",
         "name": "美元指数DXY",
-        "value": "103.8 (DXY)",
+        "value": "104.0 (DXY)",
         "score": -1,
         "weight": 0.13
       },
       {
         "layer": "宏观结构",
-        "name": "VIX风险（高，黄金同步下跌·避险失效）",
-        "value": "VIX 26.4",
-        "score": 0,
+        "name": "VIX风险（高）",
+        "value": "VIX 29.1",
+        "score": 3,
         "weight": 0.1
       },
       {
@@ -147,25 +147,25 @@
         "weight": 0.12
       }
     ],
-    "normalized_score": -7,
-    "tech_score": 1,
+    "normalized_score": -1,
+    "tech_score": 0,
     "action": "观望空仓",
     "fed_cut_prob_est": 43,
     "fed_cut_source": "TIPS推算",
     "etf_flow": "流出",
     "etf_data_valid": true,
-    "vix_risk_off": true,
+    "vix_risk_off": false,
     "dxy_source": "Yahoo Finance",
     "tech_support": 3503.0,
     "tech_resistance": 4558.0,
-    "atr": 113.25,
+    "atr": 111.39,
     "in_support": true,
     "in_deep_support": false,
     "breakout": false,
     "vix": {
-      "value": 26.4,
+      "value": 29.1,
       "risk_level": "高",
-      "date": "2026-11-24",
+      "date": "2026-11-25",
       "source": "CBOE VIX（yfinance）"
     },
     "cot": {
@@ -178,12 +178,12 @@
     "tech_details": {
       "above_ma50": false,
       "above_ma200": false,
-      "rsi": 23.4,
+      "rsi": 20.1,
       "rsi_divergence": false,
       "macd_cross": false,
       "support": 3503.0,
       "resistance": 4558.0,
-      "atr": 113.25
+      "atr": 111.39
     }
   }
 }
